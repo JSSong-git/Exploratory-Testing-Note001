@@ -1,0 +1,52 @@
+{
+  "name": "exploratory-testing-extension",
+  "description": "Chrome extension for exploratory testing",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "build": "wxt build",
+    "zip": "wxt zip",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:component": "vitest run test/component",
+    "test:e2e:smoke": "playwright test test/e2e/smoke",
+    "test:e2e": "playwright test test/e2e/features",
+    "test:e2e:regression": "playwright test test/e2e/regression",
+    "test:affected": "node test/scripts/run-affected-tests.mjs",
+    "test:phase": "node test/scripts/run-phase-tests.mjs",
+    "test:all": "npm run test && npm run test:e2e:smoke && npm run test:e2e && npm run test:e2e:regression"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "idb": "^8.0.3",
+    "jszip": "^3.10.1",
+    "lucide-react": "^0.511.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "recharts": "^2.15.3",
+    "tailwind-merge": "^3.3.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.52.0",
+    "@tailwindcss/vite": "^4.1.8",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@types/chrome": "^0.0.323",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@wxt-dev/module-react": "^1.1.5",
+    "jsdom": "^26.1.0",
+    "fake-indexeddb": "^6.0.0",
+    "tailwindcss": "^4.1.8",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.1",
+    "wxt": "^0.20.26"
+  }
+}

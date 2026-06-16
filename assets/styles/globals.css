@@ -1,0 +1,29 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-bug: #dc2626;
+  --color-note: #2563eb;
+  --color-idea: #d97706;
+  --color-question: #7c3aed;
+  --color-background: #0f172a;
+  --color-foreground: #f8fafc;
+  --color-muted: #94a3b8;
+  --color-card: #1e293b;
+  --color-border: #334155;
+  --color-accent: #38bdf8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'IBM Plex Sans',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+}

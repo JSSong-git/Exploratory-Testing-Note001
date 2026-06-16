@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Annotation Editor</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="overlay">
+      <div id="canvas-wrap">
+        <canvas id="annotation-canvas"></canvas>
+      </div>
+      <div id="toolbar">
+        <button type="button" data-tool="arrow" class="tool active" title="Arrow (A)">A</button>
+        <button type="button" data-tool="rectangle" class="tool" title="Rectangle (R)">R</button>
+        <button type="button" data-tool="text" class="tool" title="Text (T)">T</button>
+        <button type="button" data-tool="blur" class="tool" title="Blur (B)">B</button>
+        <span class="sep"></span>
+        <button type="button" id="undo-btn" title="Undo (Ctrl+Z)">Undo</button>
+        <button type="button" id="save-btn" class="primary">Save</button>
+        <button type="button" id="cancel-btn">Cancel</button>
+      </div>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
