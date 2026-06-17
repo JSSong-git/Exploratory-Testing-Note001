@@ -4,6 +4,7 @@ import { ANNOTATION_TYPES, countByType } from '@/lib/core/types';
 import { sendMessage } from '@/lib/messaging/client';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { MarkdownView } from '@/components/MarkdownView';
 import {
   Bar,
   BarChart,
@@ -80,8 +81,10 @@ export default function ReportApp() {
           type="button"
           data-testid="report-filter-all"
           onClick={() => setTypeFilter('all')}
-          className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-            typeFilter === 'all' ? 'bg-sky-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-muted)]'
+          className={`border-b-2 px-3 py-1.5 text-xs font-medium ${
+            typeFilter === 'all'
+              ? 'border-zinc-900 text-zinc-900'
+              : 'border-transparent text-[var(--color-muted)]'
           }`}
         >
           All
@@ -92,9 +95,12 @@ export default function ReportApp() {
             type="button"
             data-testid={`report-filter-${type}`}
             onClick={() => setTypeFilter(type)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-              typeFilter === type ? 'bg-sky-500 text-white' : 'bg-[var(--color-card)] text-[var(--color-muted)]'
+            className={`border-b-2 px-3 py-1.5 text-xs font-medium ${
+              typeFilter === type
+                ? 'text-zinc-900'
+                : 'border-transparent text-[var(--color-muted)]'
             }`}
+            style={typeFilter === type ? { borderBottomColor: `var(--color-${type})` } : undefined}
           >
             {TYPE_LABELS[type]}
           </button>
@@ -111,10 +117,10 @@ export default function ReportApp() {
       <div className="mb-8 h-64 rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4" data-testid="report-chart">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={chartData}>
-            <XAxis dataKey="name" stroke="#94a3b8" />
-            <YAxis allowDecimals={false} stroke="#94a3b8" />
+            <XAxis dataKey="name" stroke="#71717a" />
+            <YAxis allowDecimals={false} stroke="#71717a" />
             <Tooltip />
-            <Bar dataKey="count" fill="#38bdf8" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" fill="#18181b" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -137,8 +143,8 @@ export default function ReportApp() {
                   <Badge tone={a.type}>{a.type}</Badge>
                 </td>
                 <td className="max-w-xs break-words p-3">{a.title}</td>
-                <td className="max-w-xs break-words p-3 text-[var(--color-muted)]">
-                  {a.description ?? '—'}
+                <td className="max-w-xs p-3 text-[var(--color-muted)]">
+                  <MarkdownView content={a.description ?? ''} />
                 </td>
                 <td className="max-w-xs break-words p-3 text-[var(--color-muted)]">{a.url}</td>
                 <td className="p-3 whitespace-nowrap text-[var(--color-muted)]">

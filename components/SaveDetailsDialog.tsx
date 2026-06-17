@@ -3,7 +3,8 @@ import type { AnnotationType } from '@/lib/core/types';
 import { ANNOTATION_TYPES } from '@/lib/core/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { MarkdownEditor } from '@/components/MarkdownEditor';
+import { cn } from '@/lib/utils';
 
 const TYPE_LABELS: Record<AnnotationType, string> = {
   bug: 'Bug',
@@ -11,6 +12,10 @@ const TYPE_LABELS: Record<AnnotationType, string> = {
   idea: 'Idea',
   question: 'Question',
 };
+
+function descriptionLabel(type: AnnotationType): string {
+  return type === 'bug' ? '오류 정보 (Markdown)' : '설명 (Markdown)';
+}
 
 export interface SaveDetailsValues {
   annotationType: AnnotationType;
@@ -67,13 +72,13 @@ export function SaveDetailsDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
       data-testid="save-details-dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby="save-details-heading"
     >
-      <div className="w-full max-w-sm rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] p-4 shadow-xl">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-xl">
         <h2 id="save-details-heading" className="mb-3 text-base font-semibold">
           Confirm annotation
         </h2>
@@ -82,23 +87,27 @@ export function SaveDetailsDialog({
           <img
             src={previewImageUrl}
             alt="Screenshot preview"
-            className="mb-3 max-h-32 w-full rounded border border-[var(--color-border)] object-contain"
+            className="mb-3 max-h-40 w-full rounded border border-[var(--color-border)] object-contain"
             data-testid="save-details-preview"
           />
         )}
 
-        <div className="mb-3 flex gap-1" data-testid="save-details-type-tabs">
+        <div className="mb-3 flex gap-1 border-b border-[var(--color-border)]" data-testid="save-details-type-tabs">
           {ANNOTATION_TYPES.map((type) => (
             <button
               key={type}
               type="button"
               data-testid={`save-details-type-${type}`}
               onClick={() => setActiveType(type)}
-              className={`flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+              className={cn(
+                'flex-1 border-b-2 px-2 py-2 text-xs font-medium transition-colors',
                 activeType === type
-                  ? 'bg-sky-500 text-white'
-                  : 'bg-[var(--color-card)] text-[var(--color-muted)] hover:text-white'
-              }`}
+                  ? 'text-zinc-900'
+                  : 'border-transparent text-[var(--color-muted)]',
+              )}
+              style={
+                activeType === type ? { borderBottomColor: `var(--color-${type})` } : undefined
+              }
             >
               {TYPE_LABELS[type]}
             </button>
@@ -107,7 +116,9 @@ export function SaveDetailsDialog({
 
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">Title (required)</label>
+            <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
+              Title (required)
+            </label>
             <Input
               data-testid="save-details-title"
               value={title}
@@ -115,17 +126,15 @@ export function SaveDetailsDialog({
               placeholder={`${TYPE_LABELS[activeType]} title`}
             />
           </div>
-          <div>
-            <label className="mb-1 block text-xs text-[var(--color-muted)]">Description (optional)</label>
-            <Textarea
-              data-testid="save-details-description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Additional details"
-            />
-          </div>
+          <MarkdownEditor
+            value={description}
+            onChange={setDescription}
+            label={descriptionLabel(activeType)}
+            testId="save-details-description"
+            minHeightClass="min-h-[180px]"
+          />
           {error && (
-            <p className="text-xs text-red-400" data-testid="save-details-error">
+            <p className="text-xs text-red-600" data-testid="save-details-error">
               {error}
             </p>
           )}

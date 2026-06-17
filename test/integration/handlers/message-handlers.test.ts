@@ -42,7 +42,7 @@ describe('background handleMessage', () => {
       payload: { annotationType: 'bug', title: '   ' },
     });
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/Title is required/);
+    if (!res.ok) expect(res.error).toMatch(/Title is required/);
     expect(sessionService.addAnnotation).not.toHaveBeenCalled();
   });
 
@@ -73,7 +73,7 @@ describe('background handleMessage', () => {
 
     const res = await handleMessage({ type: 'EXPORT_MARKDOWN' });
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/Nothing to export/);
+    if (!res.ok) expect(res.error).toMatch(/Nothing to export/);
   });
 
   it('rejects UPDATE_ANNOTATION without title', async () => {
@@ -82,7 +82,7 @@ describe('background handleMessage', () => {
       payload: { id: 'a1', title: '   ' },
     });
     expect(res.ok).toBe(false);
-    expect(res.error).toMatch(/Title is required/);
+    if (!res.ok) expect(res.error).toMatch(/Title is required/);
     expect(sessionService.updateAnnotation).not.toHaveBeenCalled();
   });
 

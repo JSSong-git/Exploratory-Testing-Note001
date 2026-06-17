@@ -1,11 +1,19 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import App from '@/entrypoints/popup/App';
+import App from '@/entrypoints/sidepanel/App';
 import { sendMessage } from '@/lib/messaging/client';
 import '@/assets/styles/globals.css';
 
 vi.mock('@/lib/messaging/client', () => ({
   sendMessage: vi.fn(),
+  getErrorMessage: (res: { ok: boolean; error?: string }, fallback?: string) =>
+    !res.ok ? res.error ?? fallback ?? 'Failed' : fallback ?? 'Failed',
+}));
+
+vi.mock('@/lib/storage/draft-store', () => ({
+  loadComposeDraft: vi.fn(async () => null),
+  saveComposeDraft: vi.fn(async () => {}),
+  clearComposeDraft: vi.fn(async () => {}),
 }));
 
 const mockSendMessage = vi.mocked(sendMessage);
@@ -42,6 +50,7 @@ function mockSessionResponses() {
               title: 'Existing bug',
               url: 'https://example.com',
               timestamp: Date.now(),
+              description: '**steps**',
             },
           ],
         },
@@ -51,13 +60,14 @@ function mockSessionResponses() {
   });
 }
 
-describe('Popup App', () => {
+describe('Side Panel App', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSessionResponses();
     vi.stubGlobal('chrome', {
       tabs: { create: vi.fn() },
       runtime: { getURL: vi.fn((path: string) => `chrome-extension://test${path}`) },
+      storage: { local: { set: vi.fn(), get: vi.fn(), remove: vi.fn() } },
     });
     vi.stubGlobal('confirm', vi.fn(() => true));
   });
@@ -67,67 +77,39 @@ describe('Popup App', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders popup shell and type tabs', async () => {
+  it('renders side panel shell and type tabs', async () => {
     render(<App />);
-    expect(screen.getByTestId('popup-root')).toBeInTheDocument();
+    expect(screen.getByTestId('sidepanel-root')).toBeInTheDocument();
     expect(screen.getByTestId('type-tab-bug')).toBeInTheDocument();
     await waitFor(() => expect(mockSendMessage).toHaveBeenCalled());
   });
 
-  it('disables save and crop when title is empty', () => {
+  it('shows review step before saving new annotation', async () => {
     render(<App />);
-    expect(screen.getByTestId('save-annotation')).toBeDisabled();
-    expect(screen.getByTestId('screenshot-crop')).toBeDisabled();
-    expect(screen.getByTestId('screenshot-full')).toBeEnabled();
-  });
-
-  it('shows session count and annotation list', async () => {
-    render(<App />);
-    await waitFor(() => {
-      expect(screen.getByTestId('session-count')).toHaveTextContent('1 items');
-      expect(screen.getByTestId('annotation-list')).toBeInTheDocument();
-      expect(screen.getByText('Existing bug')).toBeInTheDocument();
+    fireEvent.change(screen.getByTestId('annotation-title'), { target: { value: 'New bug' } });
+    fireEvent.change(screen.getByTestId('annotation-description-input'), {
+      target: { value: '## Details' },
     });
-  });
-
-  it('opens export menu with inline markdown option', () => {
-    render(<App />);
-    fireEvent.click(screen.getByTestId('export-menu-toggle'));
-    expect(screen.getByTestId('export-markdown-inline')).toBeVisible();
-  });
-
-  it('enters edit mode and sends UPDATE_ANNOTATION', async () => {
-    render(<App />);
-    await waitFor(() => screen.getByTestId('edit-annotation-a1'));
-
-    fireEvent.click(screen.getByTestId('edit-annotation-a1'));
-    expect(screen.getByTestId('editing-indicator')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByTestId('annotation-title'), { target: { value: 'Updated bug' } });
     fireEvent.click(screen.getByTestId('save-annotation'));
-
+    expect(screen.getByTestId('annotation-review')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('review-confirm'));
     await waitFor(() => {
       expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'UPDATE_ANNOTATION',
-        payload: {
-          id: 'a1',
-          title: 'Updated bug',
-          description: undefined,
-        },
+        type: 'ADD_ANNOTATION',
+        payload: expect.objectContaining({
+          title: 'New bug',
+          description: '## Details',
+        }),
       });
     });
   });
 
-  it('deletes annotation when confirmed', async () => {
+  it('enters edit mode from saved list', async () => {
     render(<App />);
-    await waitFor(() => screen.getByTestId('delete-annotation-a1'));
-    fireEvent.click(screen.getByTestId('delete-annotation-a1'));
-
-    await waitFor(() => {
-      expect(mockSendMessage).toHaveBeenCalledWith({
-        type: 'DELETE_ANNOTATION',
-        payload: { id: 'a1' },
-      });
-    });
+    await waitFor(() => screen.getByTestId('nav-list'));
+    fireEvent.click(screen.getByTestId('nav-list'));
+    fireEvent.click(screen.getByTestId('annotation-item-a1'));
+    fireEvent.click(screen.getByTestId('detail-edit'));
+    expect(screen.getByTestId('editing-indicator')).toBeInTheDocument();
   });
 });

@@ -1,38 +1,33 @@
 import { test, expect } from '../helpers/extension-helper';
+import { clearSession, saveAnnotationThroughReview } from '../helpers/extension-helper';
 
-test.beforeEach(async ({ popup }) => {
-  await popup.evaluate(async () => {
-    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-  });
+test.beforeEach(async ({ sidepanel }) => {
+  await clearSession(sidepanel);
 });
 
-test('adds bug annotation with title', async ({ popup }) => {
-  await popup.getByTestId('type-tab-bug').click();
-  await popup.getByTestId('annotation-title').fill('Login button broken');
-  await popup.getByTestId('annotation-description').fill('Submit does nothing');
-  await popup.getByTestId('save-annotation').click();
+test('adds bug annotation with title', async ({ sidepanel }) => {
+  await saveAnnotationThroughReview(sidepanel, {
+    title: 'Login button broken',
+    description: 'Submit does nothing',
+    type: 'bug',
+  });
   await expect.poll(async () => {
-    return popup.evaluate(() =>
-      chrome.runtime.sendMessage({ type: 'GET_SESSION_SUMMARY' }).then((r) => r?.data?.annotationsCount ?? 0),
+    return sidepanel.evaluate(() =>
+      chrome.runtime.sendMessage({ type: 'GET_SESSION_SUMMARY' }).then((r) => r?.data?.bugs ?? 0),
     );
   }).toBe(1);
 });
 
-test('rejects save without title', async ({ popup }) => {
-  await expect(popup.getByTestId('save-annotation')).toBeDisabled();
+test('rejects save without title', async ({ sidepanel }) => {
+  await expect(sidepanel.getByTestId('save-annotation')).toBeDisabled();
 });
 
-test('adds note and idea types', async ({ popup }) => {
-  await popup.getByTestId('type-tab-note').click();
-  await popup.getByTestId('annotation-title').fill('Observation');
-  await popup.getByTestId('save-annotation').click();
-
-  await popup.getByTestId('type-tab-idea').click();
-  await popup.getByTestId('annotation-title').fill('Try dark mode');
-  await popup.getByTestId('save-annotation').click();
+test('adds note and idea types', async ({ sidepanel }) => {
+  await saveAnnotationThroughReview(sidepanel, { title: 'Observation', type: 'note' });
+  await saveAnnotationThroughReview(sidepanel, { title: 'Try dark mode', type: 'idea' });
 
   await expect.poll(async () => {
-    return popup.evaluate(() =>
+    return sidepanel.evaluate(() =>
       chrome.runtime.sendMessage({ type: 'GET_SESSION_SUMMARY' }).then((r) => r?.data?.annotationsCount ?? 0),
     );
   }).toBe(2);

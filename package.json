@@ -2,7 +2,7 @@
   "name": "exploratory-testing-extension",
   "description": "Chrome extension for exploratory testing",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "wxt",
@@ -30,7 +30,9 @@
     "lucide-react": "^0.511.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
     "recharts": "^2.15.3",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.3.0"
   },
   "devDependencies": {
@@ -42,8 +44,8 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@wxt-dev/module-react": "^1.1.5",
-    "jsdom": "^26.1.0",
     "fake-indexeddb": "^6.0.0",
+    "jsdom": "^26.1.0",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.9.3",
     "vitest": "^3.2.1",

@@ -1,9 +1,8 @@
 import { test, expect } from '../helpers/extension-helper';
+import { clearSession } from '../helpers/extension-helper';
 
-test.beforeEach(async ({ popup }) => {
-  await popup.evaluate(async () => {
-    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-  });
+test.beforeEach(async ({ sidepanel }) => {
+  await clearSession(sidepanel);
 });
 
 test('crop flow saves annotation through editor and save details dialog', async ({
@@ -14,13 +13,13 @@ test('crop flow saves annotation through editor and save details dialog', async 
   await contentPage.goto('https://example.com');
   await contentPage.bringToFront();
 
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByTestId('popup-root').waitFor();
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await panel.getByTestId('sidepanel-root').waitFor();
 
-  await popup.getByTestId('annotation-title').fill('Cropped region');
-  await popup.getByTestId('annotation-description').fill('Area selection test');
-  await popup.getByTestId('screenshot-crop').click();
+  await panel.getByTestId('annotation-title').fill('Cropped region');
+  await panel.getByTestId('annotation-description-input').fill('Area selection test');
+  await panel.getByTestId('screenshot-crop').click();
 
   await contentPage.bringToFront();
   await contentPage.waitForTimeout(300);
@@ -42,7 +41,7 @@ test('crop flow saves annotation through editor and save details dialog', async 
   await expect(contentPage.locator('#et-save-details')).toBeHidden({ timeout: 15_000 });
 
   const verifyPage = await context.newPage();
-  await verifyPage.goto(`chrome-extension://${extensionId}/popup.html`);
+  await verifyPage.goto(`chrome-extension://${extensionId}/sidepanel.html`);
   await expect.poll(async () => {
     return verifyPage.evaluate(() =>
       chrome.runtime.sendMessage({ type: 'GET_SESSION_SUMMARY' }).then((r) => r?.data?.annotationsCount ?? 0),

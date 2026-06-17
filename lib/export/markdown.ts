@@ -68,7 +68,7 @@ async function annotationToInlineMarkdown(annotation: Annotation): Promise<strin
   block += `- **URL:** ${annotation.url}\n`;
   block += `- **Time:** ${formatTimestamp(annotation.timestamp)}\n`;
   if (annotation.description) {
-    block += `- **Description:** ${annotation.description}\n`;
+    block += `\n${annotation.description}\n`;
   }
 
   if (annotation.imageId) {
@@ -92,7 +92,7 @@ async function annotationToMarkdown(
   block += `- **URL:** ${annotation.url}\n`;
   block += `- **Time:** ${formatTimestamp(annotation.timestamp)}\n`;
   if (annotation.description) {
-    block += `- **Description:** ${annotation.description}\n`;
+    block += `\n${annotation.description}\n`;
   }
 
   if (annotation.imageId) {

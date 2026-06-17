@@ -1,4 +1,5 @@
 import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test';
+import type { AnnotationType } from '@/lib/core/types';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -10,6 +11,8 @@ export const extensionPath = path.resolve(__dirname, '../../../.output/chrome-mv
 type Fixtures = {
   context: BrowserContext;
   extensionId: string;
+  sidepanel: Page;
+  /** @deprecated use sidepanel */
   popup: Page;
 };
 
@@ -41,20 +44,46 @@ export const test = base.extend<Fixtures>({
     if (!extensionId) throw new Error('Extension service worker not found');
     await use(extensionId);
   },
-  popup: async ({ context, extensionId }, use) => {
+  sidepanel: async ({ context, extensionId }, use) => {
     const page = await context.newPage();
-    await page.goto(`chrome-extension://${extensionId}/popup.html`);
-    await page.getByTestId('popup-root').waitFor();
+    await page.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await page.getByTestId('sidepanel-root').waitFor();
     await use(page);
+  },
+  popup: async ({ sidepanel }, use) => {
+    await use(sidepanel);
   },
 });
 
 export { expect } from '@playwright/test';
 
+export async function clearSession(page: Page) {
+  await page.evaluate(async () => {
+    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+  });
+}
+
+export async function saveAnnotationThroughReview(
+  page: Page,
+  options: { title: string; description?: string; type?: AnnotationType },
+) {
+  await page.getByTestId('nav-compose').click();
+  if (options.type) {
+    await page.getByTestId(`type-tab-${options.type}`).click();
+  }
+  await page.getByTestId('annotation-title').fill(options.title);
+  if (options.description) {
+    await page.getByTestId('annotation-description-input').fill(options.description);
+  }
+  await page.getByTestId('save-annotation').click();
+  await page.getByTestId('review-confirm').click();
+  await page.getByTestId('annotation-list').waitFor({ timeout: 10_000 });
+}
+
 export async function clearExtensionStorage(extensionId: string) {
   const page = await chromium.launch().then(async (b) => {
     const p = await b.newPage();
-    await p.goto(`chrome-extension://${extensionId}/popup.html`);
+    await p.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     return { page: p, browser: b };
   });
   try {

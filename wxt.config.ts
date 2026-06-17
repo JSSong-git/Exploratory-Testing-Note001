@@ -9,7 +9,7 @@ export default defineConfig({
   manifest: {
     name: 'Exploratory Testing Extension',
     description: 'Chrome extension for exploratory testing',
-    version: '1.0.0',
+    version: '2.0.0',
     permissions: [
       'storage',
       'tabs',
@@ -17,7 +17,11 @@ export default defineConfig({
       'downloads',
       'scripting',
       'notifications',
+      'sidePanel',
     ],
+    side_panel: {
+      default_path: 'sidepanel.html',
+    },
     host_permissions: ['<all_urls>'],
     action: {
       default_title: 'Exploratory Testing',

@@ -1,35 +1,29 @@
 import { test, expect } from '../helpers/extension-helper';
+import { clearSession } from '../helpers/extension-helper';
 
-test.beforeEach(async ({ popup }) => {
-  await popup.evaluate(async () => {
-    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-  });
+test.beforeEach(async ({ sidepanel }) => {
+  await clearSession(sidepanel);
 });
 
-test('full screenshot opens save details dialog and requires title', async ({
-  context,
-  extensionId,
-}) => {
-  const contentPage = await context.newPage();
-  await contentPage.goto('https://example.com');
+test('full screenshot opens save details dialog and requires title', async ({ context, extensionId }) => {
+  const content = await context.newPage();
+  await content.goto('https://example.com');
 
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await popup.getByTestId('popup-root').waitFor();
+  const panel = await context.newPage();
+  await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await panel.getByTestId('sidepanel-root').waitFor();
 
-  await popup.getByTestId('screenshot-full').click();
-  await expect(popup.getByTestId('save-details-dialog')).toBeVisible();
-  await expect(popup.getByTestId('save-details-confirm')).toBeDisabled();
+  await panel.getByTestId('screenshot-full').click();
+  await expect(panel.getByTestId('save-details-dialog')).toBeVisible();
+  await expect(panel.getByTestId('save-details-confirm')).toBeDisabled();
 
-  await popup.getByTestId('save-details-title').fill('Captured screen');
-  await expect(popup.getByTestId('save-details-confirm')).toBeEnabled();
-  await popup.getByTestId('save-details-confirm').click();
+  await panel.getByTestId('save-details-title').fill('Captured screen');
+  await expect(panel.getByTestId('save-details-confirm')).toBeEnabled();
+  await panel.getByTestId('save-details-confirm').click();
 
   await expect.poll(async () => {
-    return popup.evaluate(() =>
+    return panel.evaluate(() =>
       chrome.runtime.sendMessage({ type: 'GET_SESSION_SUMMARY' }).then((r) => r?.data?.annotationsCount ?? 0),
     );
   }).toBe(1);
-
-  await contentPage.close();
 });

@@ -18,15 +18,15 @@ const legacyJson = JSON.stringify({
   ],
 });
 
-test('imports legacy JSON session', async ({ popup }) => {
+test('imports legacy JSON session', async ({ sidepanel }) => {
   const fixturesDir = path.join(__dirname, '../../fixtures');
   fs.mkdirSync(fixturesDir, { recursive: true });
   const tmpPath = path.join(fixturesDir, 'legacy-session-tmp.json');
   fs.writeFileSync(tmpPath, legacyJson);
 
-  await popup.getByTestId('import-json').click();
-  await popup.getByTestId('import-json-input').setInputFiles(tmpPath);
-  await expect(popup.getByTestId('session-count')).toHaveText('1 items', { timeout: 10_000 });
+  await sidepanel.getByTestId('import-json').click();
+  await sidepanel.getByTestId('import-json-input').setInputFiles(tmpPath);
+  await expect(sidepanel.getByTestId('session-count')).toHaveText('1 items', { timeout: 10_000 });
 
   fs.unlinkSync(tmpPath);
 });

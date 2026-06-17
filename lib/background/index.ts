@@ -24,6 +24,10 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
 export async function registerBackground(): Promise<void> {
   await initSession();
 
+  if (chrome.sidePanel) {
+    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  }
+
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (!message?.type) return false;
     handleMessage(message as Message)

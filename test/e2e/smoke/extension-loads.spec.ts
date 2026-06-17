@@ -29,7 +29,7 @@ test.afterAll(async () => {
   fs.rmSync(userDataDir, { recursive: true, force: true });
 });
 
-test('extension loads and popup renders', async () => {
+test('extension loads and side panel renders', async () => {
   const deadline = Date.now() + 30_000;
   let extensionId = '';
 
@@ -44,8 +44,8 @@ test('extension loads and popup renders', async () => {
 
   expect(extensionId).toBeTruthy();
 
-  const popup = await context.newPage();
-  await popup.goto(`chrome-extension://${extensionId}/popup.html`);
-  await expect(popup.getByTestId('popup-root')).toBeVisible({ timeout: 10_000 });
-  await expect(popup.getByTestId('annotation-title')).toBeVisible();
+  const sidepanel = await context.newPage();
+  await sidepanel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+  await expect(sidepanel.getByTestId('sidepanel-root')).toBeVisible({ timeout: 10_000 });
+  await expect(sidepanel.getByTestId('annotation-title')).toBeVisible();
 });

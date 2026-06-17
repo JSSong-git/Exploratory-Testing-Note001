@@ -6,10 +6,12 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<NonNullable<ButtonProps['variant']>, string> = {
-  default: 'bg-sky-500 text-white hover:bg-sky-400',
-  outline: 'border border-[var(--color-border)] bg-transparent hover:bg-[var(--color-card)]',
-  ghost: 'bg-transparent hover:bg-[var(--color-card)]',
-  destructive: 'bg-red-600 text-white hover:bg-red-500',
+  default:
+    'bg-[var(--color-accent)] text-[var(--color-accent-foreground)] hover:bg-zinc-800 shadow-sm',
+  outline:
+    'border border-[var(--color-border)] bg-[var(--color-card)] hover:bg-zinc-50 shadow-sm',
+  ghost: 'bg-transparent hover:bg-zinc-100',
+  destructive: 'bg-red-600 text-white hover:bg-red-700 shadow-sm',
 };
 
 const sizeClasses: Record<NonNullable<ButtonProps['size']>, string> = {

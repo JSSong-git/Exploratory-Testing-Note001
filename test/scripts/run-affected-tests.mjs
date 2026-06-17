@@ -10,7 +10,7 @@ const MAPPING = [
   { pattern: /^lib\/messaging\//, cmds: ['npm run test:integration'] },
   { pattern: /^lib\/background\//, cmds: ['npm run test:integration', 'npm run test:e2e:smoke'] },
   { pattern: /^lib\/background\/handlers\//, cmds: ['npm run test:integration'] },
-  { pattern: /^entrypoints\/popup\//, cmds: ['npm run test:component', 'npm run test:e2e -- test/e2e/features/annotation-basic.spec.ts'] },
+  { pattern: /^entrypoints\/sidepanel\//, cmds: ['npm run test:component', 'npm run test:e2e -- test/e2e/features/annotation-basic.spec.ts'] },
   { pattern: /^entrypoints\/content\.ts$/, cmds: ['npm run build', 'npm run test:e2e -- test/e2e/features/crop-screenshot.spec.ts'] },
   { pattern: /^entrypoints\/annotation-editor\//, cmds: ['npm run test:e2e -- test/e2e/features/crop-screenshot.spec.ts'] },
   { pattern: /^entrypoints\/save-details\//, cmds: ['npm run test:component', 'npm run test:e2e -- test/e2e/features/crop-screenshot.spec.ts'] },
