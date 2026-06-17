@@ -29,6 +29,8 @@ vi.mock('@/lib/export/download', () => ({
   sessionFilename: vi.fn(() => 'session.zip'),
 }));
 
+import { downloadText } from '@/lib/export/download';
+
 describe('background handleMessage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -72,5 +74,48 @@ describe('background handleMessage', () => {
     const res = await handleMessage({ type: 'EXPORT_MARKDOWN' });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/Nothing to export/);
+  });
+
+  it('rejects UPDATE_ANNOTATION without title', async () => {
+    const res = await handleMessage({
+      type: 'UPDATE_ANNOTATION',
+      payload: { id: 'a1', title: '   ' },
+    });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/Title is required/);
+    expect(sessionService.updateAnnotation).not.toHaveBeenCalled();
+  });
+
+  it('exports inline markdown for session with annotations', async () => {
+    vi.mocked(sessionService.getSession).mockReturnValue({
+      startDateTime: Date.now(),
+      browserInfo: {
+        brand: 'Chrome',
+        browserVersion: '1',
+        os: 'Win',
+        osVersion: '',
+        cookies: true,
+        language: 'en',
+        timezone: 'UTC',
+        screenResolution: '1920x1080',
+      },
+      annotations: [
+        {
+          id: 'a1',
+          type: 'bug',
+          title: 'Bug one',
+          url: 'https://example.com',
+          timestamp: Date.now(),
+        },
+      ],
+    });
+
+    const res = await handleMessage({ type: 'EXPORT_MARKDOWN_INLINE' });
+    expect(res.ok).toBe(true);
+    expect(downloadText).toHaveBeenCalledWith(
+      expect.stringContaining('Bug one'),
+      expect.any(String),
+      'text/markdown',
+    );
   });
 });

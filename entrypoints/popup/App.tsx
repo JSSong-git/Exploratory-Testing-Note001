@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AnnotationType } from '@/lib/core/types';
+import type { Annotation, AnnotationType, Session } from '@/lib/core/types';
 import { ANNOTATION_TYPES } from '@/lib/core/types';
 import type { SessionSummary } from '@/lib/messaging/protocol';
 import { sendMessage } from '@/lib/messaging/client';
@@ -23,13 +23,14 @@ const TYPE_COUNT_KEY: Record<AnnotationType, keyof SessionSummary> = {
   question: 'questions',
 };
 
-type ExportFormat = 'markdown' | 'json' | 'csv' | 'html';
+type ExportFormat = 'markdown' | 'markdown-inline' | 'json' | 'csv' | 'html';
 
-const EXPORT_OPTIONS: { id: ExportFormat; label: string; messageType: string }[] = [
-  { id: 'markdown', label: 'Markdown (.zip)', messageType: 'EXPORT_MARKDOWN' },
-  { id: 'json', label: 'JSON', messageType: 'EXPORT_JSON' },
-  { id: 'csv', label: 'CSV', messageType: 'EXPORT_CSV' },
-  { id: 'html', label: 'Standalone HTML', messageType: 'EXPORT_HTML' },
+const EXPORT_OPTIONS: { id: ExportFormat; label: string; defaultMarker?: boolean }[] = [
+  { id: 'markdown', label: 'Markdown (.zip)', defaultMarker: true },
+  { id: 'markdown-inline', label: 'Markdown inline (.md)' },
+  { id: 'json', label: 'JSON' },
+  { id: 'csv', label: 'CSV' },
+  { id: 'html', label: 'Standalone HTML' },
 ];
 
 export default function App() {
@@ -37,6 +38,8 @@ export default function App() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [summary, setSummary] = useState<SessionSummary | null>(null);
+  const [annotations, setAnnotations] = useState<Annotation[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -44,14 +47,18 @@ export default function App() {
   const importRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
-  const refreshSummary = useCallback(async () => {
-    const res = await sendMessage<SessionSummary>({ type: 'GET_SESSION_SUMMARY' });
-    if (res.ok && res.data) setSummary(res.data as SessionSummary);
+  const refreshSession = useCallback(async () => {
+    const summaryRes = await sendMessage<SessionSummary>({ type: 'GET_SESSION_SUMMARY' });
+    const sessionRes = await sendMessage<Session>({ type: 'GET_FULL_SESSION' });
+    if (summaryRes.ok && summaryRes.data) setSummary(summaryRes.data as SessionSummary);
+    if (sessionRes.ok && sessionRes.data) {
+      setAnnotations((sessionRes.data as Session).annotations);
+    }
   }, []);
 
   useEffect(() => {
-    refreshSummary();
-  }, [refreshSummary]);
+    refreshSession();
+  }, [refreshSession]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -65,6 +72,13 @@ export default function App() {
 
   const titleInvalid = title.trim().length === 0;
 
+  function resetForm() {
+    setTitle('');
+    setDescription('');
+    setEditingId(null);
+    setActiveType('bug');
+  }
+
   async function saveAnnotation(imageDataUrl?: string) {
     if (titleInvalid) {
       setError('Title is required');
@@ -72,23 +86,54 @@ export default function App() {
     }
     setBusy(true);
     setError('');
-    const res = await sendMessage({
-      type: 'ADD_ANNOTATION',
-      payload: {
-        annotationType: activeType,
-        title: title.trim(),
-        description: description.trim() || undefined,
-        imageDataUrl,
-      },
-    });
+
+    const res = editingId
+      ? await sendMessage({
+          type: 'UPDATE_ANNOTATION',
+          payload: {
+            id: editingId,
+            title: title.trim(),
+            description: description.trim() || undefined,
+          },
+        })
+      : await sendMessage({
+          type: 'ADD_ANNOTATION',
+          payload: {
+            annotationType: activeType,
+            title: title.trim(),
+            description: description.trim() || undefined,
+            imageDataUrl,
+          },
+        });
+
     setBusy(false);
     if (!res.ok) {
       setError(res.error ?? 'Failed to save');
       return;
     }
-    setTitle('');
-    setDescription('');
-    await refreshSummary();
+    resetForm();
+    await refreshSession();
+  }
+
+  function startEdit(annotation: Annotation) {
+    setEditingId(annotation.id);
+    setActiveType(annotation.type);
+    setTitle(annotation.title);
+    setDescription(annotation.description ?? '');
+    setError('');
+  }
+
+  async function removeAnnotation(id: string) {
+    if (!confirm('Delete this annotation?')) return;
+    setBusy(true);
+    const res = await sendMessage({ type: 'DELETE_ANNOTATION', payload: { id } });
+    setBusy(false);
+    if (!res.ok) {
+      setError(res.error ?? 'Failed to delete');
+      return;
+    }
+    if (editingId === id) resetForm();
+    await refreshSession();
   }
 
   async function captureFullScreenshot() {
@@ -126,8 +171,7 @@ export default function App() {
       setError(res.error ?? 'Could not start crop');
       return;
     }
-    setTitle('');
-    setDescription('');
+    resetForm();
     window.close();
   }
 
@@ -136,11 +180,13 @@ export default function App() {
     const message =
       format === 'markdown'
         ? { type: 'EXPORT_MARKDOWN' as const }
-        : format === 'json'
-          ? { type: 'EXPORT_JSON' as const }
-          : format === 'csv'
-            ? { type: 'EXPORT_CSV' as const }
-            : { type: 'EXPORT_HTML' as const };
+        : format === 'markdown-inline'
+          ? { type: 'EXPORT_MARKDOWN_INLINE' as const }
+          : format === 'json'
+            ? { type: 'EXPORT_JSON' as const }
+            : format === 'csv'
+              ? { type: 'EXPORT_CSV' as const }
+              : { type: 'EXPORT_HTML' as const };
     const res = await sendMessage(message);
     if (!res.ok) setError(res.error ?? 'Export failed');
   }
@@ -152,14 +198,15 @@ export default function App() {
       setError(res.error ?? 'Import failed');
       return;
     }
-    await refreshSummary();
+    await refreshSession();
   }
 
   async function clearSession() {
     if (!summary?.annotationsCount) return;
     if (!confirm('Reset current session?')) return;
     await sendMessage({ type: 'CLEAR_SESSION' });
-    await refreshSummary();
+    resetForm();
+    await refreshSession();
   }
 
   function openReport() {
@@ -214,6 +261,11 @@ export default function App() {
       </div>
 
       <div className="space-y-3">
+        {editingId && (
+          <p className="text-xs text-sky-400" data-testid="editing-indicator">
+            Editing annotation
+          </p>
+        )}
         <div>
           <label className="mb-1 block text-xs text-[var(--color-muted)]">Title (required)</label>
           <Input
@@ -245,12 +297,12 @@ export default function App() {
             onClick={() => saveAnnotation()}
             className="flex-1"
           >
-            Save
+            {editingId ? 'Update' : 'Save'}
           </Button>
           <Button
             data-testid="screenshot-full"
             variant="outline"
-            disabled={busy}
+            disabled={busy || !!editingId}
             onClick={captureFullScreenshot}
           >
             Full
@@ -258,13 +310,56 @@ export default function App() {
           <Button
             data-testid="screenshot-crop"
             variant="outline"
-            disabled={busy || titleInvalid}
+            disabled={busy || titleInvalid || !!editingId}
             onClick={startCrop}
           >
             Crop
           </Button>
         </div>
+        {editingId && (
+          <Button data-testid="cancel-edit" variant="ghost" size="sm" onClick={resetForm}>
+            Cancel edit
+          </Button>
+        )}
       </div>
+
+      {annotations.length > 0 && (
+        <section className="mt-4 max-h-40 overflow-y-auto border-t border-[var(--color-border)] pt-3" data-testid="annotation-list">
+          <h2 className="mb-2 text-xs font-semibold text-[var(--color-muted)]">Saved annotations</h2>
+          <ul className="space-y-2">
+            {annotations.map((annotation) => (
+              <li
+                key={annotation.id}
+                className="flex items-start justify-between gap-2 rounded-md bg-[var(--color-card)] p-2"
+                data-testid={`annotation-item-${annotation.id}`}
+              >
+                <div className="min-w-0">
+                  <Badge tone={annotation.type}>{annotation.type}</Badge>
+                  <p className="truncate text-xs font-medium">{annotation.title}</p>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    data-testid={`edit-annotation-${annotation.id}`}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => startEdit(annotation)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    data-testid={`delete-annotation-${annotation.id}`}
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => removeAnnotation(annotation.id)}
+                  >
+                    Del
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <footer className="mt-6 flex flex-wrap gap-2 border-t border-[var(--color-border)] pt-4">
         <Button data-testid="preview-report" variant="outline" size="sm" onClick={openReport}>
@@ -280,7 +375,7 @@ export default function App() {
           </Button>
           {exportOpen && (
             <div
-              className="absolute bottom-full left-0 z-10 mb-1 min-w-[180px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
+              className="absolute bottom-full left-0 z-10 mb-1 min-w-[200px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
               data-testid="export-menu"
             >
               {EXPORT_OPTIONS.map((option) => (
@@ -291,7 +386,7 @@ export default function App() {
                   className="block w-full px-3 py-2 text-left text-xs hover:bg-[var(--color-background)]"
                   onClick={() => runExport(option.id)}
                 >
-                  {option.id === 'markdown' ? '● ' : '○ '}
+                  {option.defaultMarker ? '● ' : '○ '}
                   {option.label}
                 </button>
               ))}
@@ -349,9 +444,8 @@ export default function App() {
               return;
             }
             setPendingScreenshot(null);
-            setTitle('');
-            setDescription('');
-            await refreshSummary();
+            resetForm();
+            await refreshSession();
           }}
         />
       )}

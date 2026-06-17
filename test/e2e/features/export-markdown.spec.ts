@@ -4,9 +4,18 @@ const TINY_PNG =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 test.beforeEach(async ({ popup }) => {
-  await popup.evaluate(async () => {
-    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-  });
+  await expect
+    .poll(async () => {
+      try {
+        await popup.evaluate(async () => {
+          await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    })
+    .toBe(true);
 });
 
 test('exports markdown when session has annotations', async ({ popup }) => {

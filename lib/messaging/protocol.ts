@@ -8,6 +8,7 @@ export type Message =
   | { type: 'GET_FULL_SESSION' }
   | { type: 'CLEAR_SESSION' }
   | { type: 'EXPORT_MARKDOWN' }
+  | { type: 'EXPORT_MARKDOWN_INLINE' }
   | { type: 'EXPORT_JSON' }
   | { type: 'EXPORT_CSV' }
   | { type: 'EXPORT_HTML' }

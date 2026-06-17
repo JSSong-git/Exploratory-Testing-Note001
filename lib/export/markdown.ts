@@ -1,4 +1,5 @@
 import type { Session, Annotation, AnnotationType } from '@/lib/core/types';
+import { getImage } from '@/lib/storage/image-store';
 import { saveImage } from '@/lib/storage/image-store';
 
 function formatTimestamp(ts: number): string {
@@ -9,11 +10,7 @@ function sanitizeFilename(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40);
 }
 
-export async function buildMarkdownZip(session: Session): Promise<Blob> {
-  const JSZip = (await import('jszip')).default;
-  const zip = new JSZip();
-  const imagesFolder = zip.folder('images')!;
-
+function sessionHeaderMarkdown(session: Session): string {
   let md = `# Exploratory Testing Session\n\n`;
   md += `| Field | Value |\n|-------|-------|\n`;
   md += `| Started | ${formatTimestamp(session.startDateTime)} |\n`;
@@ -26,6 +23,24 @@ export async function buildMarkdownZip(session: Session): Promise<Blob> {
   md += `## Summary\n\n`;
   md += `- Bugs: ${counts.bug} | Notes: ${counts.note} | Ideas: ${counts.idea} | Questions: ${counts.question}\n\n`;
   md += `## Annotations\n\n`;
+  return md;
+}
+
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function buildMarkdownZip(session: Session): Promise<Blob> {
+  const JSZip = (await import('jszip')).default;
+  const zip = new JSZip();
+  const imagesFolder = zip.folder('images')!;
+
+  let md = sessionHeaderMarkdown(session);
 
   for (const annotation of session.annotations) {
     md += await annotationToMarkdown(annotation, imagesFolder);
@@ -34,6 +49,37 @@ export async function buildMarkdownZip(session: Session): Promise<Blob> {
 
   zip.file('session.md', md);
   return zip.generateAsync({ type: 'blob' });
+}
+
+export async function buildInlineMarkdown(session: Session): Promise<string> {
+  let md = sessionHeaderMarkdown(session);
+
+  for (const annotation of session.annotations) {
+    md += await annotationToInlineMarkdown(annotation);
+    md += '\n';
+  }
+
+  return md;
+}
+
+async function annotationToInlineMarkdown(annotation: Annotation): Promise<string> {
+  const typeLabel = annotation.type.charAt(0).toUpperCase() + annotation.type.slice(1);
+  let block = `### [${typeLabel}] ${annotation.title}\n\n`;
+  block += `- **URL:** ${annotation.url}\n`;
+  block += `- **Time:** ${formatTimestamp(annotation.timestamp)}\n`;
+  if (annotation.description) {
+    block += `- **Description:** ${annotation.description}\n`;
+  }
+
+  if (annotation.imageId) {
+    const blob = await getImage(annotation.imageId);
+    if (blob) {
+      const dataUrl = await blobToDataUrl(blob);
+      block += `\n![${annotation.title}](${dataUrl})\n`;
+    }
+  }
+
+  return block;
 }
 
 async function annotationToMarkdown(

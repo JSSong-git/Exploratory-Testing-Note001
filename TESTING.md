@@ -4,7 +4,7 @@
 
 | Command | When to run |
 |---------|-------------|
-| `npm test` | After any `lib/**` change |
+| `npm test` | After any `lib/**` change (unit + component + integration) |
 | `npm run test:affected` | After any file change (git diff based) |
 | `npm run test:phase 1` | Phase-specific gate |
 | `npm run build` | Before E2E |
@@ -23,7 +23,9 @@ See `test/scripts/run-affected-tests.mjs` for glob → suite mapping.
 4. SaveDetailsDialog after full screenshot (`screenshot-confirm`)
 5. Legacy JSON import (E2E `legacy-json-import`)
 6. Markdown export (`export-markdown`)
-7. Extension smoke load
+7. Crop screenshot flow (`crop-screenshot`)
+8. Report preview (`report-preview`)
+9. Extension smoke load
 
 ## E2E notes
 

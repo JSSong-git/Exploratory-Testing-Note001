@@ -8,6 +8,21 @@ export type EditorShape =
 
 export const EDITOR_COLOR = '#dc2626';
 
+export function clientToCanvasPoint(
+  clientX: number,
+  clientY: number,
+  rect: Pick<DOMRect, 'left' | 'top' | 'width' | 'height'>,
+  canvasWidth: number,
+  canvasHeight: number,
+) {
+  const scaleX = canvasWidth / rect.width;
+  const scaleY = canvasHeight / rect.height;
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY,
+  };
+}
+
 export function drawArrow(
   ctx: CanvasRenderingContext2D,
   x1: number,
