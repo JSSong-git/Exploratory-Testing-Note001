@@ -18,6 +18,7 @@ export default defineConfig({
       'scripting',
       'notifications',
     ],
+    host_permissions: ['<all_urls>'],
     action: {
       default_title: 'Exploratory Testing',
     },
@@ -26,7 +27,7 @@ export default defineConfig({
     },
     web_accessible_resources: [
       {
-        resources: ['annotation-editor.html'],
+        resources: ['annotation-editor.html', 'save-details.html'],
         matches: ['<all_urls>'],
       },
     ],

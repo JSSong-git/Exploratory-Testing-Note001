@@ -106,16 +106,8 @@ export default defineContentScript({
         const onMessage = async (event: MessageEvent) => {
           if (event.source !== iframe.contentWindow) return;
           if (event.data?.type === 'annotationComplete') {
-            await chrome.runtime.sendMessage({
-              type: 'SAVE_CROPPED_ANNOTATION',
-              payload: {
-                annotationType: draft!.annotationType,
-                title: draft!.title,
-                description: draft!.description,
-                imageDataUrl: event.data.imageData,
-              },
-            });
             closeEditor();
+            await openSaveDetailsDialog(event.data.imageData as string, draft!);
             resolve();
           } else if (event.data?.type === 'annotationCancelled') {
             closeEditor();
@@ -132,6 +124,65 @@ export default defineContentScript({
         iframe.addEventListener('load', () => {
           iframe.contentWindow?.postMessage({ type: 'initAnnotationEditor', imageData }, '*');
         });
+      });
+    }
+
+    function openSaveDetailsDialog(
+      imageData: string,
+      draft: { annotationType: string; title: string; description?: string },
+    ): Promise<void> {
+      return new Promise((resolve) => {
+        const iframe = document.createElement('iframe');
+        iframe.id = 'et-save-details';
+        iframe.style.cssText =
+          'position:fixed;inset:0;border:none;z-index:2147483647;width:100%;height:100%;';
+        iframe.src = chrome.runtime.getURL('/save-details.html');
+        document.body.appendChild(iframe);
+
+        let ready = false;
+
+        const onMessage = async (event: MessageEvent) => {
+          if (event.source !== iframe.contentWindow) return;
+
+          if (event.data?.type === 'saveDetailsReady' && !ready) {
+            ready = true;
+            iframe.contentWindow?.postMessage(
+              {
+                type: 'initSaveDetails',
+                annotationType: draft.annotationType,
+                title: draft.title,
+                description: draft.description,
+                imageDataUrl: imageData,
+              },
+              '*',
+            );
+            return;
+          }
+
+          if (event.data?.type === 'saveDetailsConfirmed') {
+            await chrome.runtime.sendMessage({
+              type: 'SAVE_CROPPED_ANNOTATION',
+              payload: {
+                annotationType: event.data.annotationType,
+                title: event.data.title,
+                description: event.data.description,
+                imageDataUrl: event.data.imageDataUrl,
+              },
+            });
+            closeDialog();
+            resolve();
+          } else if (event.data?.type === 'saveDetailsCancelled') {
+            closeDialog();
+            resolve();
+          }
+        };
+
+        function closeDialog() {
+          window.removeEventListener('message', onMessage);
+          iframe.remove();
+        }
+
+        window.addEventListener('message', onMessage);
       });
     }
 

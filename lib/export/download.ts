@@ -1,10 +1,15 @@
+async function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
 export async function downloadBlob(blob: Blob, filename: string): Promise<void> {
-  const url = URL.createObjectURL(blob);
-  try {
-    await chrome.downloads.download({ url, filename, saveAs: true });
-  } finally {
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  }
+  const url = await blobToDataUrl(blob);
+  await chrome.downloads.download({ url, filename, saveAs: false });
 }
 
 export async function downloadText(content: string, filename: string, mime: string): Promise<void> {

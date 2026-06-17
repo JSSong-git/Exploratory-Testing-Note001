@@ -18,9 +18,12 @@ See `test/scripts/run-affected-tests.mjs` for glob → suite mapping.
 ## Regression scenarios (do not skip)
 
 1. Storage: session JSON has no inline base64 (`test/unit/regression/storage-separation.test.ts`)
-2. Title required on save (E2E `annotation-basic`)
-3. Legacy JSON import (E2E `legacy-json-import`)
-4. Extension smoke load
+2. Storage quota: 12 screenshots + export (`test/e2e/regression/storage-quota.spec.ts`)
+3. Title required on save (E2E `annotation-basic`, `screenshot-confirm`)
+4. SaveDetailsDialog after full screenshot (`screenshot-confirm`)
+5. Legacy JSON import (E2E `legacy-json-import`)
+6. Markdown export (`export-markdown`)
+7. Extension smoke load
 
 ## E2E notes
 

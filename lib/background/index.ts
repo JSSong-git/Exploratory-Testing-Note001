@@ -11,6 +11,7 @@ import {
   updateAnnotation,
 } from '@/lib/services/session-service';
 import { buildCsv, buildJson, buildMarkdownZip } from '@/lib/export/markdown';
+import { buildStandaloneHtml } from '@/lib/export/html';
 import { downloadBlob, downloadText, sessionFilename } from '@/lib/export/download';
 import { importLegacySession } from '@/lib/export/legacy-import';
 import { notifyAnnotationSaved } from '@/lib/background/notify';
@@ -72,6 +73,15 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
       await downloadText(buildCsv(session), sessionFilename(session, 'csv'), 'text/csv');
       return { ok: true };
     }
+    case 'EXPORT_HTML': {
+      const session = getSession();
+      if (!session || session.annotations.length === 0) {
+        return { ok: false, error: 'Nothing to export' };
+      }
+      const html = await buildStandaloneHtml(session);
+      await downloadText(html, sessionFilename(session, 'html'), 'text/html');
+      return { ok: true };
+    }
     case 'IMPORT_JSON': {
       try {
         const session = await importLegacySession(message.payload.json);
@@ -104,6 +114,14 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
       const dataUrl = await captureCrop(message.payload.coordinates);
       return { ok: true, data: dataUrl };
     }
+    case 'CAPTURE_FULL_SCREENSHOT': {
+      try {
+        const dataUrl = await captureFullWebTab();
+        return { ok: true, data: dataUrl };
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : 'Capture failed' };
+      }
+    }
     case 'SAVE_CROPPED_ANNOTATION': {
       await addAnnotation({
         annotationType: message.payload.annotationType,
@@ -117,6 +135,38 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
     default:
       return { ok: false, error: 'Unknown message type' };
   }
+}
+
+async function captureFullWebTab(): Promise<string> {
+  const tabs = await chrome.tabs.query({});
+  const webTabs = tabs.filter(
+    (tab) =>
+      tab.id &&
+      tab.windowId !== undefined &&
+      tab.url &&
+      (tab.url.startsWith('http://') || tab.url.startsWith('https://')),
+  );
+  const webTab = webTabs[webTabs.length - 1];
+
+  if (!webTab?.id || webTab.windowId === undefined) {
+    throw new Error('No web page tab found to capture');
+  }
+
+  const activeTabs = await chrome.tabs.query({ active: true, windowId: webTab.windowId });
+  const previousTabId = activeTabs[0]?.id;
+
+  if (webTab.id !== previousTabId) {
+    await chrome.tabs.update(webTab.id, { active: true });
+    await new Promise((r) => setTimeout(r, 150));
+  }
+
+  const dataUrl = await chrome.tabs.captureVisibleTab(webTab.windowId, { format: 'png' });
+
+  if (previousTabId && previousTabId !== webTab.id) {
+    await chrome.tabs.update(previousTabId, { active: true });
+  }
+
+  return dataUrl;
 }
 
 async function captureCrop(coords: CropCoordinates): Promise<string | null> {

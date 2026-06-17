@@ -9,7 +9,7 @@ Greenfield WXT + TypeScript + React rebuild for exploratory testing sessions.
 - `npm test` — Vitest unit/integration/component tests
 - `npm run test:e2e:smoke` — Playwright smoke (requires build first)
 - `npm run test:affected` — run tests mapped to changed files
-- `npm run test:all` — unit + smoke e2e
+- `npm run test:all` — unit + component + integration + smoke + feature + regression E2E
 
 ## Load in Chrome
 

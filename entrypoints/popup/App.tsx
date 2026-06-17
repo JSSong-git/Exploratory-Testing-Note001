@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { SaveDetailsDialog } from '@/components/SaveDetailsDialog';
 
 const TYPE_LABELS: Record<AnnotationType, string> = {
   bug: 'Bug',
@@ -22,6 +23,15 @@ const TYPE_COUNT_KEY: Record<AnnotationType, keyof SessionSummary> = {
   question: 'questions',
 };
 
+type ExportFormat = 'markdown' | 'json' | 'csv' | 'html';
+
+const EXPORT_OPTIONS: { id: ExportFormat; label: string; messageType: string }[] = [
+  { id: 'markdown', label: 'Markdown (.zip)', messageType: 'EXPORT_MARKDOWN' },
+  { id: 'json', label: 'JSON', messageType: 'EXPORT_JSON' },
+  { id: 'csv', label: 'CSV', messageType: 'EXPORT_CSV' },
+  { id: 'html', label: 'Standalone HTML', messageType: 'EXPORT_HTML' },
+];
+
 export default function App() {
   const [activeType, setActiveType] = useState<AnnotationType>('bug');
   const [title, setTitle] = useState('');
@@ -29,7 +39,10 @@ export default function App() {
   const [summary, setSummary] = useState<SessionSummary | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [pendingScreenshot, setPendingScreenshot] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const refreshSummary = useCallback(async () => {
     const res = await sendMessage<SessionSummary>({ type: 'GET_SESSION_SUMMARY' });
@@ -39,6 +52,16 @@ export default function App() {
   useEffect(() => {
     refreshSummary();
   }, [refreshSummary]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
 
   const titleInvalid = title.trim().length === 0;
 
@@ -69,12 +92,20 @@ export default function App() {
   }
 
   async function captureFullScreenshot() {
-    if (titleInvalid) {
-      setError('Title is required before screenshot');
-      return;
+    setError('');
+    setBusy(true);
+    try {
+      const res = await sendMessage<string>({ type: 'CAPTURE_FULL_SCREENSHOT' });
+      if (!res.ok || !res.data) {
+        setError(res.error ?? 'Screenshot capture failed');
+        return;
+      }
+      setPendingScreenshot(res.data as string);
+    } catch {
+      setError('Screenshot capture failed');
+    } finally {
+      setBusy(false);
     }
-    const dataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
-    await saveAnnotation(dataUrl);
   }
 
   async function startCrop() {
@@ -100,8 +131,17 @@ export default function App() {
     window.close();
   }
 
-  async function exportDefault() {
-    const res = await sendMessage({ type: 'EXPORT_MARKDOWN' });
+  async function runExport(format: ExportFormat) {
+    setExportOpen(false);
+    const message =
+      format === 'markdown'
+        ? { type: 'EXPORT_MARKDOWN' as const }
+        : format === 'json'
+          ? { type: 'EXPORT_JSON' as const }
+          : format === 'csv'
+            ? { type: 'EXPORT_CSV' as const }
+            : { type: 'EXPORT_HTML' as const };
+    const res = await sendMessage(message);
     if (!res.ok) setError(res.error ?? 'Export failed');
   }
 
@@ -210,7 +250,7 @@ export default function App() {
           <Button
             data-testid="screenshot-full"
             variant="outline"
-            disabled={busy || titleInvalid}
+            disabled={busy}
             onClick={captureFullScreenshot}
           >
             Full
@@ -230,9 +270,34 @@ export default function App() {
         <Button data-testid="preview-report" variant="outline" size="sm" onClick={openReport}>
           Preview Report
         </Button>
-        <Button data-testid="export-markdown" size="sm" onClick={exportDefault}>
-          Export MD
-        </Button>
+        <div className="relative" ref={exportMenuRef}>
+          <Button
+            data-testid="export-menu-toggle"
+            size="sm"
+            onClick={() => setExportOpen((v) => !v)}
+          >
+            Export ▾
+          </Button>
+          {exportOpen && (
+            <div
+              className="absolute bottom-full left-0 z-10 mb-1 min-w-[180px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
+              data-testid="export-menu"
+            >
+              {EXPORT_OPTIONS.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  data-testid={`export-${option.id}`}
+                  className="block w-full px-3 py-2 text-left text-xs hover:bg-[var(--color-background)]"
+                  onClick={() => runExport(option.id)}
+                >
+                  {option.id === 'markdown' ? '● ' : '○ '}
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <Button
           data-testid="import-json"
           variant="outline"
@@ -257,6 +322,39 @@ export default function App() {
           Reset
         </Button>
       </footer>
+
+      {pendingScreenshot && (
+        <SaveDetailsDialog
+          key={pendingScreenshot}
+          open
+          initialType={activeType}
+          initialTitle={title}
+          initialDescription={description}
+          previewImageUrl={pendingScreenshot}
+          onCancel={() => setPendingScreenshot(null)}
+          onConfirm={async (values) => {
+            setBusy(true);
+            const res = await sendMessage({
+              type: 'ADD_ANNOTATION',
+              payload: {
+                annotationType: values.annotationType,
+                title: values.title,
+                description: values.description,
+                imageDataUrl: pendingScreenshot,
+              },
+            });
+            setBusy(false);
+            if (!res.ok) {
+              setError(res.error ?? 'Failed to save');
+              return;
+            }
+            setPendingScreenshot(null);
+            setTitle('');
+            setDescription('');
+            await refreshSummary();
+          }}
+        />
+      )}
     </div>
   );
 }

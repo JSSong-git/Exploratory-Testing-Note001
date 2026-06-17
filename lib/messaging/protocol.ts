@@ -10,9 +10,11 @@ export type Message =
   | { type: 'EXPORT_MARKDOWN' }
   | { type: 'EXPORT_JSON' }
   | { type: 'EXPORT_CSV' }
+  | { type: 'EXPORT_HTML' }
   | { type: 'IMPORT_JSON'; payload: { json: string } }
   | { type: 'INITIATE_CROP'; payload: CropDraft }
   | { type: 'REQUEST_CROP_SCREENSHOT'; payload: { coordinates: CropCoordinates } }
+  | { type: 'CAPTURE_FULL_SCREENSHOT' }
   | { type: 'SAVE_CROPPED_ANNOTATION'; payload: SaveCroppedPayload };
 
 export interface AddAnnotationPayload {
