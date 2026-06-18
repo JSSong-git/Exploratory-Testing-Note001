@@ -5,9 +5,12 @@ import { sendMessage } from '@/lib/messaging/client';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MarkdownView } from '@/components/MarkdownView';
+import { AnnotationImage } from '@/components/AnnotationImage';
+import { CHART_TYPE_LABELS, ko, TYPE_LABELS } from '@/lib/i18n/ko';
 import {
   Bar,
   BarChart,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -17,12 +20,14 @@ import '@/assets/styles/globals.css';
 
 type TypeFilter = AnnotationType | 'all';
 
-const TYPE_LABELS: Record<AnnotationType, string> = {
-  bug: 'Bug',
-  note: 'Note',
-  idea: 'Idea',
-  question: 'Question',
+const CHART_COLORS: Record<AnnotationType, string> = {
+  bug: 'var(--color-bug)',
+  note: 'var(--color-note)',
+  idea: 'var(--color-idea)',
+  question: 'var(--color-question)',
 };
+
+const CHART_TYPES: AnnotationType[] = ['bug', 'note', 'idea', 'question'];
 
 export default function ReportApp() {
   const [session, setSession] = useState<Session | null>(null);
@@ -33,7 +38,7 @@ export default function ReportApp() {
   useEffect(() => {
     sendMessage<Session>({ type: 'GET_FULL_SESSION' }).then((res) => {
       if (res.ok && res.data) setSession(res.data as Session);
-      else setError('No session data available');
+      else setError(ko.report.noData);
     });
   }, []);
 
@@ -51,12 +56,11 @@ export default function ReportApp() {
   const chartData = useMemo(() => {
     if (!session) return [];
     const counts = countByType({ ...session, annotations: filteredAnnotations });
-    return [
-      { name: 'Bugs', count: counts.bug },
-      { name: 'Notes', count: counts.note },
-      { name: 'Ideas', count: counts.idea },
-      { name: 'Questions', count: counts.question },
-    ];
+    return CHART_TYPES.map((type) => ({
+      type,
+      name: CHART_TYPE_LABELS[type],
+      count: counts[type],
+    }));
   }, [session, filteredAnnotations]);
 
   if (error) {
@@ -64,15 +68,15 @@ export default function ReportApp() {
   }
 
   if (!session) {
-    return <div className="p-8 text-center">Loading report...</div>;
+    return <div className="p-8 text-center">{ko.report.loading}</div>;
   }
 
   return (
-    <div className="min-h-screen p-6" data-testid="report-root">
+    <div className="mx-auto min-h-screen max-w-6xl p-6" data-testid="report-root">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold">Session Report</h1>
+        <h1 className="text-2xl font-bold">{ko.report.title}</h1>
         <p className="text-sm text-[var(--color-muted)]">
-          Started {new Date(session.startDateTime).toLocaleString()}
+          {ko.report.started(new Date(session.startDateTime).toLocaleString())}
         </p>
       </header>
 
@@ -87,7 +91,7 @@ export default function ReportApp() {
               : 'border-transparent text-[var(--color-muted)]'
           }`}
         >
-          All
+          {ko.report.all}
         </button>
         {ANNOTATION_TYPES.map((type) => (
           <button
@@ -109,7 +113,7 @@ export default function ReportApp() {
           data-testid="report-search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search title, description, URL"
+          placeholder={ko.report.searchPlaceholder}
           className="max-w-xs"
         />
       </div>
@@ -120,7 +124,11 @@ export default function ReportApp() {
             <XAxis dataKey="name" stroke="#71717a" />
             <YAxis allowDecimals={false} stroke="#71717a" />
             <Tooltip />
-            <Bar dataKey="count" fill="#18181b" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+              {chartData.map((entry) => (
+                <Cell key={entry.type} fill={CHART_COLORS[entry.type]} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -129,37 +137,69 @@ export default function ReportApp() {
         <table className="w-full text-sm" data-testid="annotations-table">
           <thead className="bg-[var(--color-card)] text-left text-[var(--color-muted)]">
             <tr>
-              <th className="p-3">Type</th>
-              <th className="p-3">Title</th>
-              <th className="p-3">Description</th>
-              <th className="p-3">URL</th>
-              <th className="p-3">Time</th>
+              <th className="p-3">{ko.report.colType}</th>
+              <th className="p-3">{ko.report.colTitle}</th>
+              <th className="p-3">{ko.report.colDescription}</th>
+              <th className="p-3">{ko.report.colScreenshot}</th>
+              <th className="p-3">{ko.report.colUrl}</th>
+              <th className="p-3">{ko.report.colTime}</th>
             </tr>
           </thead>
           <tbody>
             {filteredAnnotations.map((a) => (
-              <tr key={a.id} className="border-t border-[var(--color-border)]" data-testid={`report-row-${a.id}`}>
-                <td className="p-3">
-                  <Badge tone={a.type}>{a.type}</Badge>
-                </td>
-                <td className="max-w-xs break-words p-3">{a.title}</td>
-                <td className="max-w-xs p-3 text-[var(--color-muted)]">
-                  <MarkdownView content={a.description ?? ''} />
-                </td>
-                <td className="max-w-xs break-words p-3 text-[var(--color-muted)]">{a.url}</td>
-                <td className="p-3 whitespace-nowrap text-[var(--color-muted)]">
-                  {new Date(a.timestamp).toLocaleString()}
-                </td>
-              </tr>
+              <ReportRow key={a.id} annotation={a} />
             ))}
           </tbody>
         </table>
         {filteredAnnotations.length === 0 && (
           <p className="p-4 text-center text-sm text-[var(--color-muted)]" data-testid="report-empty">
-            No annotations match the current filters.
+            {ko.report.empty}
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+function ReportRow({ annotation }: { annotation: Annotation }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <tr className="border-t border-[var(--color-border)]" data-testid={`report-row-${annotation.id}`}>
+      <td className="p-3">
+        <Badge tone={annotation.type}>{TYPE_LABELS[annotation.type]}</Badge>
+      </td>
+      <td className="max-w-xs break-words p-3">{annotation.title}</td>
+      <td className="max-w-xs p-3 text-[var(--color-muted)]">
+        <MarkdownView content={annotation.description ?? ''} />
+      </td>
+      <td className="p-3">
+        {annotation.imageId ? (
+          <AnnotationImage
+            imageId={annotation.imageId}
+            alt={annotation.title}
+            variant="thumbnail"
+            testId={`report-image-${annotation.id}`}
+            onClick={() => setExpanded((v) => !v)}
+          />
+        ) : (
+          <span className="text-xs text-[var(--color-muted)]">—</span>
+        )}
+        {expanded && annotation.imageId && (
+          <div className="mt-2">
+            <AnnotationImage
+              imageId={annotation.imageId}
+              alt={annotation.title}
+              variant="full"
+              testId={`report-image-full-${annotation.id}`}
+            />
+          </div>
+        )}
+      </td>
+      <td className="max-w-xs break-words p-3 text-[var(--color-muted)]">{annotation.url}</td>
+      <td className="p-3 whitespace-nowrap text-[var(--color-muted)]">
+        {new Date(annotation.timestamp).toLocaleString()}
+      </td>
+    </tr>
   );
 }

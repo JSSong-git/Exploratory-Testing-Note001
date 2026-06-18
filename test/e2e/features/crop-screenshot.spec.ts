@@ -55,6 +55,11 @@ test('crop flow saves annotation through editor and save details dialog', async 
   expect(session?.annotations?.[0]?.title).toBe('Cropped region');
   expect(session?.annotations?.[0]?.imageId).toBeTruthy();
 
+  await verifyPage.getByTestId('nav-list').click();
+  const annotationId = session?.annotations?.[0]?.id as string;
+  await verifyPage.getByTestId(`annotation-item-${annotationId}`).click();
+  await expect(verifyPage.getByTestId('annotation-detail-image')).toBeVisible({ timeout: 10_000 });
+
   await contentPage.close();
   await verifyPage.close();
 });

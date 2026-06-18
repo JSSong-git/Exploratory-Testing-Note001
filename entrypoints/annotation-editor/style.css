@@ -5,7 +5,13 @@
 }
 
 body {
-  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-family:
+    'Pretendard Variable',
+    Pretendard,
+    -apple-system,
+    BlinkMacSystemFont,
+    system-ui,
+    sans-serif;
   background: rgba(15, 23, 42, 0.95);
   overflow: hidden;
 }
@@ -51,9 +57,10 @@ body {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   border-radius: 8px;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.65rem;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .tool.active,

@@ -5,17 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MarkdownEditor } from '@/components/MarkdownEditor';
 import { cn } from '@/lib/utils';
-
-const TYPE_LABELS: Record<AnnotationType, string> = {
-  bug: 'Bug',
-  note: 'Note',
-  idea: 'Idea',
-  question: 'Question',
-};
-
-function descriptionLabel(type: AnnotationType): string {
-  return type === 'bug' ? '오류 정보 (Markdown)' : '설명 (Markdown)';
-}
+import { ko, TYPE_LABELS, descriptionLabel, titlePlaceholder } from '@/lib/i18n/ko';
 
 export interface SaveDetailsValues {
   annotationType: AnnotationType;
@@ -54,7 +44,7 @@ export function SaveDetailsDialog({
 
   async function handleConfirm() {
     if (titleInvalid) {
-      setError('Title is required');
+      setError(ko.errors.titleRequired);
       return;
     }
     setBusy(true);
@@ -80,13 +70,13 @@ export function SaveDetailsDialog({
     >
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-xl">
         <h2 id="save-details-heading" className="mb-3 text-base font-semibold">
-          Confirm annotation
+          {ko.actions.confirmAnnotation}
         </h2>
 
         {previewImageUrl && (
           <img
             src={previewImageUrl}
-            alt="Screenshot preview"
+            alt={ko.actions.screenshotPreview}
             className="mb-3 max-h-40 w-full rounded border border-[var(--color-border)] object-contain"
             data-testid="save-details-preview"
           />
@@ -117,13 +107,13 @@ export function SaveDetailsDialog({
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-              Title (required)
+              {ko.form.titleRequired}
             </label>
             <Input
               data-testid="save-details-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={`${TYPE_LABELS[activeType]} title`}
+              placeholder={titlePlaceholder(activeType)}
             />
           </div>
           <MarkdownEditor
@@ -146,7 +136,7 @@ export function SaveDetailsDialog({
               disabled={busy}
               onClick={onCancel}
             >
-              Cancel
+              {ko.actions.cancel}
             </Button>
             <Button
               data-testid="save-details-confirm"
@@ -154,7 +144,7 @@ export function SaveDetailsDialog({
               disabled={busy || titleInvalid}
               onClick={handleConfirm}
             >
-              Save
+              {ko.actions.save}
             </Button>
           </div>
         </div>

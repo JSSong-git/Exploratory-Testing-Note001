@@ -42,7 +42,7 @@ describe('background handleMessage', () => {
       payload: { annotationType: 'bug', title: '   ' },
     });
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toMatch(/Title is required/);
+    if (!res.ok) expect(res.error).toMatch(/제목을 입력/);
     expect(sessionService.addAnnotation).not.toHaveBeenCalled();
   });
 
@@ -82,7 +82,7 @@ describe('background handleMessage', () => {
       payload: { id: 'a1', title: '   ' },
     });
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toMatch(/Title is required/);
+    if (!res.ok) expect(res.error).toMatch(/제목을 입력/);
     expect(sessionService.updateAnnotation).not.toHaveBeenCalled();
   });
 

@@ -24,9 +24,10 @@ test('imports legacy JSON session', async ({ sidepanel }) => {
   const tmpPath = path.join(fixturesDir, 'legacy-session-tmp.json');
   fs.writeFileSync(tmpPath, legacyJson);
 
+  await sidepanel.getByTestId('more-menu-toggle').click();
   await sidepanel.getByTestId('import-json').click();
   await sidepanel.getByTestId('import-json-input').setInputFiles(tmpPath);
-  await expect(sidepanel.getByTestId('session-count')).toHaveText('1 items', { timeout: 10_000 });
+  await expect(sidepanel.getByTestId('session-count')).toHaveText('1건', { timeout: 10_000 });
 
   fs.unlinkSync(tmpPath);
 });

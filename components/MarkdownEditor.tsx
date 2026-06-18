@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { Textarea } from '@/components/ui/textarea';
 import { MarkdownView } from '@/components/MarkdownView';
 import { cn } from '@/lib/utils';
+import { ko } from '@/lib/i18n/ko';
 
 type EditorTab = 'edit' | 'preview';
+
+const TAB_LABELS: Record<EditorTab, string> = {
+  edit: ko.editor.edit,
+  preview: ko.editor.preview,
+};
 
 interface MarkdownEditorProps {
   value: string;
@@ -18,7 +24,7 @@ export function MarkdownEditor({
   value,
   onChange,
   label,
-  placeholder = 'Write in Markdown…',
+  placeholder = ko.editor.writePlaceholder,
   testId = 'markdown-editor',
   minHeightClass = 'min-h-[240px]',
 }: MarkdownEditorProps) {
@@ -37,13 +43,13 @@ export function MarkdownEditor({
             data-testid={`${testId}-tab-${mode}`}
             onClick={() => setTab(mode)}
             className={cn(
-              'border-b-2 px-1 pb-2 text-xs font-medium capitalize transition-colors',
+              'border-b-2 px-1 pb-2 text-xs font-medium transition-colors',
               tab === mode
                 ? 'border-zinc-900 text-zinc-900'
                 : 'border-transparent text-[var(--color-muted)] hover:text-zinc-700',
             )}
           >
-            {mode}
+            {TAB_LABELS[mode]}
           </button>
         ))}
       </div>
@@ -56,9 +62,7 @@ export function MarkdownEditor({
             placeholder={placeholder}
             className={cn('font-mono text-[13px] leading-relaxed', minHeightClass)}
           />
-          <p className="mt-1.5 text-[10px] text-[var(--color-muted)]">
-            **bold** · - list · `code` · ## heading
-          </p>
+          <p className="mt-1.5 text-[10px] text-[var(--color-muted)]">{ko.editor.hint}</p>
         </>
       ) : (
         <div
@@ -68,7 +72,7 @@ export function MarkdownEditor({
           )}
           data-testid={`${testId}-preview`}
         >
-          <MarkdownView content={value} emptyText="Nothing to preview yet." />
+          <MarkdownView content={value} emptyText={ko.editor.emptyPreview} />
         </div>
       )}
     </div>

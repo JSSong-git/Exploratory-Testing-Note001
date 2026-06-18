@@ -3,7 +3,8 @@ import { getSession, replaceSession } from '@/lib/services/session-service';
 import { buildCsv, buildJson, buildMarkdownZip, buildInlineMarkdown } from '@/lib/export/markdown';
 import { buildStandaloneHtml } from '@/lib/export/html';
 import { downloadBlob, downloadText, sessionFilename } from '@/lib/export/download';
-import { importLegacySession } from '@/lib/export/legacy-import';
+import { importSessionJson } from '@/lib/export/session-import';
+import { ko } from '@/lib/i18n/ko';
 
 export async function handleExportMessage(message: Message): Promise<MessageResponse | null> {
   switch (message.type) {
@@ -52,11 +53,12 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
     }
     case 'IMPORT_JSON': {
       try {
-        const session = await importLegacySession(message.payload.json);
+        const session = await importSessionJson(message.payload.json);
         await replaceSession(session);
         return { ok: true };
-      } catch {
-        return { ok: false, error: 'Invalid session JSON' };
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : 'Unknown error';
+        return { ok: false, error: `${ko.errors.importFailed} (${detail})` };
       }
     }
     default:

@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ImageIcon } from 'lucide-react';
 import type { Annotation, AnnotationType, Session } from '@/lib/core/types';
 import { ANNOTATION_TYPES } from '@/lib/core/types';
 import type { SessionSummary } from '@/lib/messaging/protocol';
 import { getErrorMessage, sendMessage } from '@/lib/messaging/client';
 import { clearComposeDraft, loadComposeDraft, saveComposeDraft } from '@/lib/storage/draft-store';
+import { stripMarkdownForPreview } from '@/lib/markdown-preview';
+import {
+  ko,
+  TYPE_LABELS,
+  descriptionLabel,
+  titlePlaceholder,
+} from '@/lib/i18n/ko';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownEditor } from '@/components/MarkdownEditor';
 import { AnnotationDetail, AnnotationReview } from '@/components/AnnotationDetail';
+import { AnnotationImage } from '@/components/AnnotationImage';
 import { SaveDetailsDialog } from '@/components/SaveDetailsDialog';
 import { cn } from '@/lib/utils';
-
-const TYPE_LABELS: Record<AnnotationType, string> = {
-  bug: 'Bug',
-  note: 'Note',
-  idea: 'Idea',
-  question: 'Question',
-};
 
 const TYPE_COUNT_KEY: Record<AnnotationType, keyof SessionSummary> = {
   bug: 'bugs',
@@ -30,16 +32,12 @@ type ExportFormat = 'markdown' | 'markdown-inline' | 'json' | 'csv' | 'html';
 type ViewMode = 'compose' | 'review' | 'list' | 'detail';
 
 const EXPORT_OPTIONS: { id: ExportFormat; label: string; defaultMarker?: boolean }[] = [
-  { id: 'markdown', label: 'Markdown (.zip)', defaultMarker: true },
-  { id: 'markdown-inline', label: 'Markdown inline (.md)' },
-  { id: 'json', label: 'JSON' },
-  { id: 'csv', label: 'CSV' },
-  { id: 'html', label: 'Standalone HTML' },
+  { id: 'markdown', label: ko.export.markdown, defaultMarker: true },
+  { id: 'markdown-inline', label: ko.export.markdownInline },
+  { id: 'json', label: ko.export.json },
+  { id: 'csv', label: ko.export.csv },
+  { id: 'html', label: ko.export.html },
 ];
-
-function descriptionLabel(type: AnnotationType): string {
-  return type === 'bug' ? '오류 정보 (Markdown)' : '설명 (Markdown)';
-}
 
 export default function App() {
   const [view, setView] = useState<ViewMode>('compose');
@@ -53,12 +51,15 @@ export default function App() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const [pendingScreenshot, setPendingScreenshot] = useState<string | null>(null);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const moreMenuRef = useRef<HTMLDivElement>(null);
 
   const selectedAnnotation = annotations.find((a) => a.id === selectedId) ?? null;
+  const sessionLoading = summary === null;
 
   const refreshSession = useCallback(async () => {
     const summaryRes = await sendMessage<SessionSummary>({ type: 'GET_SESSION_SUMMARY' });
@@ -96,6 +97,9 @@ export default function App() {
     function onClickOutside(e: MouseEvent) {
       if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
         setExportOpen(false);
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
       }
     }
     document.addEventListener('mousedown', onClickOutside);
@@ -137,7 +141,7 @@ export default function App() {
 
     setBusy(false);
     if (!res.ok) {
-      setError(getErrorMessage(res, 'Failed to save'));
+      setError(getErrorMessage(res, ko.errors.saveFailed));
       return false;
     }
     resetForm();
@@ -148,7 +152,7 @@ export default function App() {
 
   function goToReview() {
     if (titleInvalid) {
-      setError('Title is required');
+      setError(ko.errors.titleRequired);
       return;
     }
     setError('');
@@ -173,12 +177,12 @@ export default function App() {
   }
 
   async function removeAnnotation(id: string) {
-    if (!confirm('Delete this annotation?')) return;
+    if (!confirm(ko.confirm.delete)) return;
     setBusy(true);
     const res = await sendMessage({ type: 'DELETE_ANNOTATION', payload: { id } });
     setBusy(false);
     if (!res.ok) {
-      setError(getErrorMessage(res, 'Failed to delete'));
+      setError(getErrorMessage(res, ko.errors.deleteFailed));
       return;
     }
     if (editingId === id) resetForm();
@@ -195,12 +199,12 @@ export default function App() {
     try {
       const res = await sendMessage<string>({ type: 'CAPTURE_FULL_SCREENSHOT' });
       if (!res.ok || !res.data) {
-        setError(getErrorMessage(res, 'Screenshot capture failed'));
+        setError(getErrorMessage(res, ko.errors.screenshotFailed));
         return;
       }
       setPendingScreenshot(res.data as string);
     } catch {
-      setError('Screenshot capture failed');
+      setError(ko.errors.screenshotFailed);
     } finally {
       setBusy(false);
     }
@@ -208,7 +212,7 @@ export default function App() {
 
   async function startCrop() {
     if (titleInvalid) {
-      setError('Title is required before crop');
+      setError(ko.errors.titleRequiredBeforeCrop);
       return;
     }
     setError('');
@@ -221,7 +225,7 @@ export default function App() {
       },
     });
     if (!res.ok) {
-      setError(getErrorMessage(res, 'Could not start crop'));
+      setError(getErrorMessage(res, ko.errors.cropFailed));
       return;
     }
     resetForm();
@@ -241,14 +245,15 @@ export default function App() {
               ? { type: 'EXPORT_CSV' as const }
               : { type: 'EXPORT_HTML' as const };
     const res = await sendMessage(message);
-    if (!res.ok) setError(getErrorMessage(res, 'Export failed'));
+    if (!res.ok) setError(getErrorMessage(res, ko.errors.exportFailed));
   }
 
   async function importJson(file: File) {
+    setMoreOpen(false);
     const text = await file.text();
     const res = await sendMessage({ type: 'IMPORT_JSON', payload: { json: text } });
     if (!res.ok) {
-      setError(getErrorMessage(res, 'Import failed'));
+      setError(getErrorMessage(res, ko.errors.importFailed));
       return;
     }
     await refreshSession();
@@ -256,8 +261,9 @@ export default function App() {
   }
 
   async function clearSession() {
+    setMoreOpen(false);
     if (!summary?.annotationsCount) return;
-    if (!confirm('Reset current session?')) return;
+    if (!confirm(ko.confirm.resetSession)) return;
     await sendMessage({ type: 'CLEAR_SESSION' });
     resetForm();
     setView('compose');
@@ -274,20 +280,20 @@ export default function App() {
       <header className="border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold tracking-tight">ET Session</h1>
-            <p className="text-xs text-[var(--color-muted)]">Exploratory Testing</p>
+            <h1 className="text-base font-semibold tracking-tight">{ko.app.title}</h1>
+            <p className="text-xs text-[var(--color-muted)]">{ko.app.subtitle}</p>
           </div>
           {summary && summary.annotationsCount > 0 && (
             <Badge tone="neutral" data-testid="session-count">
-              {summary.annotationsCount} items
+              {ko.app.itemCount(summary.annotationsCount)}
             </Badge>
           )}
         </div>
         <nav className="mt-3 flex gap-4 border-b border-[var(--color-border)]">
           {(
             [
-              ['compose', 'Compose'],
-              ['list', 'Saved'],
+              ['compose', ko.nav.compose],
+              ['list', ko.nav.saved],
             ] as const
           ).map(([mode, label]) => (
             <button
@@ -312,11 +318,15 @@ export default function App() {
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
+        {sessionLoading && (
+          <p className="mb-4 text-center text-sm text-[var(--color-muted)]">{ko.app.loading}</p>
+        )}
+
         {view === 'compose' && (
           <div className="space-y-4">
             {editingId && (
               <p className="text-xs font-medium text-zinc-600" data-testid="editing-indicator">
-                Editing annotation
+                {ko.form.editing}
               </p>
             )}
             <div className="flex gap-1 border-b border-[var(--color-border)]" data-testid="type-tabs">
@@ -348,13 +358,13 @@ export default function App() {
 
             <div>
               <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-                Title (required)
+                {ko.form.titleRequired}
               </label>
               <Input
                 data-testid="annotation-title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder={`${TYPE_LABELS[activeType]} title`}
+                placeholder={titlePlaceholder(activeType)}
               />
             </div>
 
@@ -362,7 +372,7 @@ export default function App() {
               value={description}
               onChange={setDescription}
               label={descriptionLabel(activeType)}
-              placeholder="Steps to reproduce, expected vs actual, notes…"
+              placeholder={ko.form.bugPlaceholder}
               testId="annotation-description"
             />
 
@@ -379,28 +389,30 @@ export default function App() {
                 onClick={() => void saveAnnotation()}
                 className="flex-1"
               >
-                {editingId ? 'Update' : 'Review'}
+                {editingId ? ko.actions.update : ko.actions.review}
               </Button>
               <Button
                 data-testid="screenshot-full"
                 variant="outline"
                 disabled={busy || !!editingId}
                 onClick={() => void captureFullScreenshot()}
+                aria-label={ko.actions.captureFullAria}
               >
-                Full
+                {ko.actions.captureFull}
               </Button>
               <Button
                 data-testid="screenshot-crop"
                 variant="outline"
                 disabled={busy || titleInvalid || !!editingId}
                 onClick={() => void startCrop()}
+                aria-label={ko.actions.captureCropAria}
               >
-                Crop
+                {ko.actions.captureCrop}
               </Button>
             </div>
             {editingId && (
               <Button data-testid="cancel-edit" variant="ghost" size="sm" onClick={resetForm}>
-                Cancel edit
+                {ko.actions.cancelEdit}
               </Button>
             )}
           </div>
@@ -420,7 +432,7 @@ export default function App() {
         {view === 'list' && (
           <section data-testid="annotation-list">
             {annotations.length === 0 ? (
-              <p className="text-center text-sm text-[var(--color-muted)]">No saved annotations yet.</p>
+              <p className="text-center text-sm text-[var(--color-muted)]">{ko.form.noSaved}</p>
             ) : (
               <ul className="space-y-2">
                 {annotations.map((annotation) => (
@@ -434,15 +446,33 @@ export default function App() {
                       }}
                       className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-3 text-left shadow-sm transition-colors hover:bg-zinc-50"
                     >
-                      <div className="flex items-center gap-2">
-                        <Badge tone={annotation.type}>{annotation.type}</Badge>
-                        <span className="truncate text-sm font-medium">{annotation.title}</span>
+                      <div className="flex items-start gap-2">
+                        {annotation.imageId && (
+                          <AnnotationImage
+                            imageId={annotation.imageId}
+                            alt={annotation.title}
+                            variant="thumbnail"
+                            testId={`list-image-${annotation.id}`}
+                          />
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <Badge tone={annotation.type}>{TYPE_LABELS[annotation.type]}</Badge>
+                            {annotation.imageId && (
+                              <ImageIcon
+                                className="h-3.5 w-3.5 shrink-0 text-[var(--color-muted)]"
+                                aria-label={ko.image.hasScreenshot}
+                              />
+                            )}
+                            <span className="truncate text-sm font-medium">{annotation.title}</span>
+                          </div>
+                          {annotation.description && (
+                            <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">
+                              {stripMarkdownForPreview(annotation.description)}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                      {annotation.description && (
-                        <p className="mt-1 line-clamp-2 text-xs text-[var(--color-muted)]">
-                          {annotation.description}
-                        </p>
-                      )}
                     </button>
                   </li>
                 ))}
@@ -463,7 +493,7 @@ export default function App() {
 
       <footer className="flex flex-wrap gap-2 border-t border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm">
         <Button data-testid="preview-report" variant="outline" size="sm" onClick={openReport}>
-          Preview Report
+          {ko.actions.previewReport}
         </Button>
         <div className="relative" ref={exportMenuRef}>
           <Button
@@ -472,7 +502,7 @@ export default function App() {
             variant="outline"
             onClick={() => setExportOpen((v) => !v)}
           >
-            Export ▾
+            {ko.actions.export} ▾
           </Button>
           {exportOpen && (
             <div
@@ -484,24 +514,53 @@ export default function App() {
                   key={option.id}
                   type="button"
                   data-testid={`export-${option.id}`}
-                  className="block w-full px-3 py-2 text-left text-xs hover:bg-zinc-50"
+                  className={cn(
+                    'block w-full px-3 py-2 text-left text-xs hover:bg-zinc-50',
+                    option.defaultMarker && 'font-medium',
+                  )}
                   onClick={() => void runExport(option.id)}
                 >
-                  {option.defaultMarker ? '● ' : '○ '}
+                  {option.defaultMarker ? `${ko.export.default} · ` : ''}
                   {option.label}
                 </button>
               ))}
             </div>
           )}
         </div>
-        <Button
-          data-testid="import-json"
-          variant="outline"
-          size="sm"
-          onClick={() => importRef.current?.click()}
-        >
-          Import
-        </Button>
+        <div className="relative" ref={moreMenuRef}>
+          <Button
+            data-testid="more-menu-toggle"
+            size="sm"
+            variant="outline"
+            onClick={() => setMoreOpen((v) => !v)}
+            aria-label={ko.actions.more}
+          >
+            ⋯
+          </Button>
+          {moreOpen && (
+            <div
+              className="absolute bottom-full right-0 z-10 mb-1 min-w-[140px] rounded-md border border-[var(--color-border)] bg-[var(--color-card)] py-1 shadow-lg"
+              data-testid="more-menu"
+            >
+              <button
+                type="button"
+                data-testid="import-json"
+                className="block w-full px-3 py-2 text-left text-xs hover:bg-zinc-50"
+                onClick={() => importRef.current?.click()}
+              >
+                {ko.actions.import}
+              </button>
+              <button
+                type="button"
+                data-testid="reset-session"
+                className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-zinc-50"
+                onClick={() => void clearSession()}
+              >
+                {ko.actions.resetSession}
+              </button>
+            </div>
+          )}
+        </div>
         <input
           ref={importRef}
           type="file"
@@ -514,9 +573,6 @@ export default function App() {
             e.target.value = '';
           }}
         />
-        <Button data-testid="reset-session" variant="destructive" size="sm" onClick={() => void clearSession()}>
-          Reset
-        </Button>
       </footer>
 
       {pendingScreenshot && (
@@ -541,7 +597,7 @@ export default function App() {
             });
             setBusy(false);
             if (!res.ok) {
-              setError(getErrorMessage(res, 'Failed to save'));
+              setError(getErrorMessage(res, ko.errors.saveFailed));
               return;
             }
             setPendingScreenshot(null);

@@ -1,4 +1,4 @@
-import { test as base, chromium, type BrowserContext, type Page } from '@playwright/test';
+import { test as base, chromium, expect, type BrowserContext, type Page } from '@playwright/test';
 import type { AnnotationType } from '@/lib/core/types';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -58,9 +58,19 @@ export const test = base.extend<Fixtures>({
 export { expect } from '@playwright/test';
 
 export async function clearSession(page: Page) {
-  await page.evaluate(async () => {
-    await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
-  });
+  await expect.poll(
+    async () => {
+      const res = await page.evaluate(async () => {
+        try {
+          return await chrome.runtime.sendMessage({ type: 'CLEAR_SESSION' });
+        } catch {
+          return null;
+        }
+      });
+      return res?.ok === true;
+    },
+    { timeout: 5000 },
+  ).toBe(true);
 }
 
 export async function saveAnnotationThroughReview(
