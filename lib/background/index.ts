@@ -5,7 +5,10 @@ import { handleSessionMessage } from '@/lib/background/handlers/session';
 import { handleExportMessage } from '@/lib/background/handlers/export';
 import { handleScreenshotMessage } from '@/lib/background/handlers/screenshot';
 
-export async function handleMessage(message: Message): Promise<MessageResponse> {
+export async function handleMessage(
+  message: Message,
+  sender?: chrome.runtime.MessageSender,
+): Promise<MessageResponse> {
   const handlers = [
     handleAnnotationMessage,
     handleSessionMessage,
@@ -14,7 +17,7 @@ export async function handleMessage(message: Message): Promise<MessageResponse> 
   ];
 
   for (const handler of handlers) {
-    const result = await handler(message);
+    const result = await handler(message, sender);
     if (result) return result;
   }
 
@@ -28,9 +31,9 @@ export async function registerBackground(): Promise<void> {
     await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
   }
 
-  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message?.type) return false;
-    handleMessage(message as Message)
+    handleMessage(message as Message, sender)
       .then(sendResponse)
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;

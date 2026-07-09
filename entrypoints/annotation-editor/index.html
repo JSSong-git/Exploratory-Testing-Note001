@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>스크린샷 주석</title>
+    <title>Annotation Editor</title>
     <link rel="stylesheet" href="./style.css" />
   </head>
   <body>
@@ -12,14 +12,14 @@
         <canvas id="annotation-canvas"></canvas>
       </div>
       <div id="toolbar">
-        <button type="button" data-tool="arrow" class="tool active" title="화살표 (A)">화살표</button>
-        <button type="button" data-tool="rectangle" class="tool" title="사각형 (R)">사각형</button>
-        <button type="button" data-tool="text" class="tool" title="텍스트 (T)">텍스트</button>
-        <button type="button" data-tool="blur" class="tool" title="모자이크 (B)">모자이크</button>
+        <button type="button" data-tool="arrow" class="tool active" title="Arrow (A)">Arrow</button>
+        <button type="button" data-tool="rectangle" class="tool" title="Rectangle (R)">Rectangle</button>
+        <button type="button" data-tool="text" class="tool" title="Text (T)">Text</button>
+        <button type="button" data-tool="blur" class="tool" title="Redact (B)">Redact</button>
         <span class="sep"></span>
-        <button type="button" id="undo-btn" title="실행 취소 (Ctrl+Z)">실행 취소</button>
-        <button type="button" id="save-btn" class="primary">저장</button>
-        <button type="button" id="cancel-btn">취소</button>
+        <button type="button" id="undo-btn" title="Undo (Ctrl+Z)">Undo</button>
+        <button type="button" id="save-btn" class="primary">Save</button>
+        <button type="button" id="cancel-btn">Cancel</button>
       </div>
     </div>
     <script type="module" src="./main.ts"></script>

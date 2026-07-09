@@ -33,7 +33,7 @@ test('imports JSON exported from the same extension', async ({ sidepanel }) => {
   await sidepanel.getByTestId('import-json').click();
   await sidepanel.getByTestId('import-json-input').setInputFiles(tmpPath);
 
-  await expect(sidepanel.getByTestId('session-count')).toHaveText('1건', { timeout: 10_000 });
+  await expect(sidepanel.getByTestId('session-count')).toHaveText('1 item', { timeout: 10_000 });
   await sidepanel.getByTestId('nav-list').click();
   await expect(sidepanel.getByText('Round trip bug')).toBeVisible({ timeout: 10_000 });
 

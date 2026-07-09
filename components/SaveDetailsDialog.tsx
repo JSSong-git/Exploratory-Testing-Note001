@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { MarkdownEditor } from '@/components/MarkdownEditor';
 import { cn } from '@/lib/utils';
-import { ko, TYPE_LABELS, descriptionLabel, titlePlaceholder } from '@/lib/i18n/ko';
+import { en, TYPE_LABELS, descriptionLabel, titlePlaceholder } from '@/lib/i18n';
 
 export interface SaveDetailsValues {
   annotationType: AnnotationType;
@@ -44,7 +44,7 @@ export function SaveDetailsDialog({
 
   async function handleConfirm() {
     if (titleInvalid) {
-      setError(ko.errors.titleRequired);
+      setError(en.errors.titleRequired);
       return;
     }
     setBusy(true);
@@ -70,13 +70,13 @@ export function SaveDetailsDialog({
     >
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-lg border border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-xl">
         <h2 id="save-details-heading" className="mb-3 text-base font-semibold">
-          {ko.actions.confirmAnnotation}
+          {en.actions.confirmAnnotation}
         </h2>
 
         {previewImageUrl && (
           <img
             src={previewImageUrl}
-            alt={ko.actions.screenshotPreview}
+            alt={en.actions.screenshotPreview}
             className="mb-3 max-h-40 w-full rounded border border-[var(--color-border)] object-contain"
             data-testid="save-details-preview"
           />
@@ -107,7 +107,7 @@ export function SaveDetailsDialog({
         <div className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-              {ko.form.titleRequired}
+              {en.form.titleRequired}
             </label>
             <Input
               data-testid="save-details-title"
@@ -136,7 +136,7 @@ export function SaveDetailsDialog({
               disabled={busy}
               onClick={onCancel}
             >
-              {ko.actions.cancel}
+              {en.actions.cancel}
             </Button>
             <Button
               data-testid="save-details-confirm"
@@ -144,7 +144,7 @@ export function SaveDetailsDialog({
               disabled={busy || titleInvalid}
               onClick={handleConfirm}
             >
-              {ko.actions.save}
+              {en.actions.save}
             </Button>
           </div>
         </div>

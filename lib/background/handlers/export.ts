@@ -4,14 +4,17 @@ import { buildCsv, buildJson, buildMarkdownZip, buildInlineMarkdown } from '@/li
 import { buildStandaloneHtml } from '@/lib/export/html';
 import { downloadBlob, downloadText, sessionFilename } from '@/lib/export/download';
 import { importSessionJson } from '@/lib/export/session-import';
-import { ko } from '@/lib/i18n/ko';
+import { en } from '@/lib/i18n';
 
-export async function handleExportMessage(message: Message): Promise<MessageResponse | null> {
+export async function handleExportMessage(
+  message: Message,
+  _sender?: chrome.runtime.MessageSender,
+): Promise<MessageResponse | null> {
   switch (message.type) {
     case 'EXPORT_MARKDOWN': {
       const session = getSession();
       if (!session || session.annotations.length === 0) {
-        return { ok: false, error: 'Nothing to export' };
+        return { ok: false, error: en.errors.nothingToExport };
       }
       const zip = await buildMarkdownZip(session);
       await downloadBlob(zip, sessionFilename(session, 'zip'));
@@ -20,7 +23,7 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
     case 'EXPORT_MARKDOWN_INLINE': {
       const session = getSession();
       if (!session || session.annotations.length === 0) {
-        return { ok: false, error: 'Nothing to export' };
+        return { ok: false, error: en.errors.nothingToExport };
       }
       const md = await buildInlineMarkdown(session);
       await downloadText(md, sessionFilename(session, 'md'), 'text/markdown');
@@ -29,7 +32,7 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
     case 'EXPORT_JSON': {
       const session = getSession();
       if (!session || session.annotations.length === 0) {
-        return { ok: false, error: 'Nothing to export' };
+        return { ok: false, error: en.errors.nothingToExport };
       }
       await downloadText(buildJson(session), sessionFilename(session, 'json'), 'application/json');
       return { ok: true };
@@ -37,7 +40,7 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
     case 'EXPORT_CSV': {
       const session = getSession();
       if (!session || session.annotations.length === 0) {
-        return { ok: false, error: 'Nothing to export' };
+        return { ok: false, error: en.errors.nothingToExport };
       }
       await downloadText(buildCsv(session), sessionFilename(session, 'csv'), 'text/csv');
       return { ok: true };
@@ -45,7 +48,7 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
     case 'EXPORT_HTML': {
       const session = getSession();
       if (!session || session.annotations.length === 0) {
-        return { ok: false, error: 'Nothing to export' };
+        return { ok: false, error: en.errors.nothingToExport };
       }
       const html = await buildStandaloneHtml(session);
       await downloadText(html, sessionFilename(session, 'html'), 'text/html');
@@ -58,7 +61,7 @@ export async function handleExportMessage(message: Message): Promise<MessageResp
         return { ok: true };
       } catch (err) {
         const detail = err instanceof Error ? err.message : 'Unknown error';
-        return { ok: false, error: `${ko.errors.importFailed} (${detail})` };
+        return { ok: false, error: `${en.errors.importFailed} (${detail})` };
       }
     }
     default:

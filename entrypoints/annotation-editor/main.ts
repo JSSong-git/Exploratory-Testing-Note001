@@ -4,11 +4,26 @@ import type { EditorTool } from '@/lib/editor/canvas-tools';
 const canvas = document.getElementById('annotation-canvas') as HTMLCanvasElement;
 const controller = new AnnotationEditorController(canvas);
 let initialized = false;
+let pendingImageData: string | null = null;
+
+function announceReady() {
+  window.parent.postMessage({ type: 'annotationEditorReady' }, '*');
+}
+
+async function initEditor() {
+  if (initialized || !pendingImageData) return;
+  initialized = true;
+  await controller.loadImage(pendingImageData);
+}
 
 window.addEventListener('message', async (event) => {
+  if (event.data?.type === 'requestAnnotationEditorReady') {
+    if (!initialized) announceReady();
+    return;
+  }
   if (event.data?.type !== 'initAnnotationEditor' || initialized) return;
-  initialized = true;
-  await controller.loadImage(event.data.imageData as string);
+  pendingImageData = event.data.imageData as string;
+  await initEditor();
 });
 
 document.querySelectorAll<HTMLButtonElement>('[data-tool]').forEach((btn) => {
@@ -48,3 +63,5 @@ document.addEventListener('keydown', (e) => {
     );
   }
 });
+
+announceReady();

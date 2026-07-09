@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { MarkdownView } from '@/components/MarkdownView';
 import { AnnotationImage } from '@/components/AnnotationImage';
-import { CHART_TYPE_LABELS, ko, TYPE_LABELS } from '@/lib/i18n/ko';
+import { CHART_TYPE_LABELS, en, TYPE_LABELS, formatLocaleDateTime } from '@/lib/i18n';
 import {
   Bar,
   BarChart,
@@ -38,7 +38,7 @@ export default function ReportApp() {
   useEffect(() => {
     sendMessage<Session>({ type: 'GET_FULL_SESSION' }).then((res) => {
       if (res.ok && res.data) setSession(res.data as Session);
-      else setError(ko.report.noData);
+      else setError(en.report.noData);
     });
   }, []);
 
@@ -68,15 +68,15 @@ export default function ReportApp() {
   }
 
   if (!session) {
-    return <div className="p-8 text-center">{ko.report.loading}</div>;
+    return <div className="p-8 text-center">{en.report.loading}</div>;
   }
 
   return (
     <div className="mx-auto min-h-screen max-w-6xl p-6" data-testid="report-root">
       <header className="mb-6">
-        <h1 className="text-2xl font-bold">{ko.report.title}</h1>
+        <h1 className="text-2xl font-bold">{en.report.title}</h1>
         <p className="text-sm text-[var(--color-muted)]">
-          {ko.report.started(new Date(session.startDateTime).toLocaleString())}
+          {en.report.started(formatLocaleDateTime(session.startDateTime))}
         </p>
       </header>
 
@@ -91,7 +91,7 @@ export default function ReportApp() {
               : 'border-transparent text-[var(--color-muted)]'
           }`}
         >
-          {ko.report.all}
+          {en.report.all}
         </button>
         {ANNOTATION_TYPES.map((type) => (
           <button
@@ -113,7 +113,7 @@ export default function ReportApp() {
           data-testid="report-search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder={ko.report.searchPlaceholder}
+          placeholder={en.report.searchPlaceholder}
           className="max-w-xs"
         />
       </div>
@@ -137,12 +137,12 @@ export default function ReportApp() {
         <table className="w-full text-sm" data-testid="annotations-table">
           <thead className="bg-[var(--color-card)] text-left text-[var(--color-muted)]">
             <tr>
-              <th className="p-3">{ko.report.colType}</th>
-              <th className="p-3">{ko.report.colTitle}</th>
-              <th className="p-3">{ko.report.colDescription}</th>
-              <th className="p-3">{ko.report.colScreenshot}</th>
-              <th className="p-3">{ko.report.colUrl}</th>
-              <th className="p-3">{ko.report.colTime}</th>
+              <th className="p-3">{en.report.colType}</th>
+              <th className="p-3">{en.report.colTitle}</th>
+              <th className="p-3">{en.report.colDescription}</th>
+              <th className="p-3">{en.report.colScreenshot}</th>
+              <th className="p-3">{en.report.colUrl}</th>
+              <th className="p-3">{en.report.colTime}</th>
             </tr>
           </thead>
           <tbody>
@@ -153,7 +153,7 @@ export default function ReportApp() {
         </table>
         {filteredAnnotations.length === 0 && (
           <p className="p-4 text-center text-sm text-[var(--color-muted)]" data-testid="report-empty">
-            {ko.report.empty}
+            {en.report.empty}
           </p>
         )}
       </div>
@@ -198,7 +198,7 @@ function ReportRow({ annotation }: { annotation: Annotation }) {
       </td>
       <td className="max-w-xs break-words p-3 text-[var(--color-muted)]">{annotation.url}</td>
       <td className="p-3 whitespace-nowrap text-[var(--color-muted)]">
-        {new Date(annotation.timestamp).toLocaleString()}
+        {formatLocaleDateTime(annotation.timestamp)}
       </td>
     </tr>
   );

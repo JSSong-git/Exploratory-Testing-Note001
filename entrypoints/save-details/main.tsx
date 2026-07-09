@@ -15,8 +15,17 @@ function SaveDetailsApp() {
   const [init, setInit] = useState<InitPayload | null>(null);
 
   useEffect(() => {
+    let hasInit = false;
+    const announceReady = () => {
+      window.parent.postMessage({ type: 'saveDetailsReady' }, '*');
+    };
     const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'requestSaveDetailsReady') {
+        if (!hasInit) announceReady();
+        return;
+      }
       if (event.data?.type !== 'initSaveDetails') return;
+      hasInit = true;
       setInit({
         annotationType: event.data.annotationType,
         title: event.data.title ?? '',
@@ -25,7 +34,7 @@ function SaveDetailsApp() {
       });
     };
     window.addEventListener('message', onMessage);
-    window.parent.postMessage({ type: 'saveDetailsReady' }, '*');
+    announceReady();
     return () => window.removeEventListener('message', onMessage);
   }, []);
 

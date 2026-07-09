@@ -19,10 +19,10 @@ describe('AnnotationDetail', () => {
         annotation={{
           id: 'a1',
           type: 'bug',
-          title: '결함 제목',
+          title: 'Defect title',
           url: 'https://example.com',
           timestamp: Date.now(),
-          description: '상세',
+          description: 'Details',
           imageId: 'img-1',
         }}
         onBack={() => {}}
@@ -39,7 +39,7 @@ describe('AnnotationDetail', () => {
         annotation={{
           id: 'a2',
           type: 'note',
-          title: '관찰',
+          title: 'Observation record',
           url: 'https://example.com',
           timestamp: Date.now(),
         }}

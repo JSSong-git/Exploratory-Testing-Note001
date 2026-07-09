@@ -1,4 +1,4 @@
-import { ko } from '@/lib/i18n/ko';
+import { en } from '@/lib/i18n';
 import { useAnnotationImage } from '@/hooks/useAnnotationImage';
 import { cn } from '@/lib/utils';
 
@@ -26,7 +26,7 @@ export function AnnotationImage({
   if (state === 'loading') {
     return (
       <p className="text-xs text-[var(--color-muted)]" data-testid={`${testId}-loading`}>
-        {ko.image.loading}
+        {en.image.loading}
       </p>
     );
   }
@@ -34,7 +34,7 @@ export function AnnotationImage({
   if (state === 'error' || !url) {
     return (
       <p className="text-xs text-[var(--color-muted)]" data-testid={`${testId}-error`}>
-        {ko.image.unavailable}
+        {en.image.unavailable}
       </p>
     );
   }

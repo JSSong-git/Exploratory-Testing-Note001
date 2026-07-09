@@ -7,11 +7,11 @@ import { getErrorMessage, sendMessage } from '@/lib/messaging/client';
 import { clearComposeDraft, loadComposeDraft, saveComposeDraft } from '@/lib/storage/draft-store';
 import { stripMarkdownForPreview } from '@/lib/markdown-preview';
 import {
-  ko,
+  en,
   TYPE_LABELS,
   descriptionLabel,
   titlePlaceholder,
-} from '@/lib/i18n/ko';
+} from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,11 +32,11 @@ type ExportFormat = 'markdown' | 'markdown-inline' | 'json' | 'csv' | 'html';
 type ViewMode = 'compose' | 'review' | 'list' | 'detail';
 
 const EXPORT_OPTIONS: { id: ExportFormat; label: string; defaultMarker?: boolean }[] = [
-  { id: 'markdown', label: ko.export.markdown, defaultMarker: true },
-  { id: 'markdown-inline', label: ko.export.markdownInline },
-  { id: 'json', label: ko.export.json },
-  { id: 'csv', label: ko.export.csv },
-  { id: 'html', label: ko.export.html },
+  { id: 'markdown', label: en.export.markdown, defaultMarker: true },
+  { id: 'markdown-inline', label: en.export.markdownInline },
+  { id: 'json', label: en.export.json },
+  { id: 'csv', label: en.export.csv },
+  { id: 'html', label: en.export.html },
 ];
 
 export default function App() {
@@ -49,6 +49,7 @@ export default function App() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -141,7 +142,7 @@ export default function App() {
 
     setBusy(false);
     if (!res.ok) {
-      setError(getErrorMessage(res, ko.errors.saveFailed));
+      setError(getErrorMessage(res, en.errors.saveFailed));
       return false;
     }
     resetForm();
@@ -152,7 +153,7 @@ export default function App() {
 
   function goToReview() {
     if (titleInvalid) {
-      setError(ko.errors.titleRequired);
+      setError(en.errors.titleRequired);
       return;
     }
     setError('');
@@ -177,12 +178,12 @@ export default function App() {
   }
 
   async function removeAnnotation(id: string) {
-    if (!confirm(ko.confirm.delete)) return;
+    if (!confirm(en.confirm.delete)) return;
     setBusy(true);
     const res = await sendMessage({ type: 'DELETE_ANNOTATION', payload: { id } });
     setBusy(false);
     if (!res.ok) {
-      setError(getErrorMessage(res, ko.errors.deleteFailed));
+      setError(getErrorMessage(res, en.errors.deleteFailed));
       return;
     }
     if (editingId === id) resetForm();
@@ -199,12 +200,12 @@ export default function App() {
     try {
       const res = await sendMessage<string>({ type: 'CAPTURE_FULL_SCREENSHOT' });
       if (!res.ok || !res.data) {
-        setError(getErrorMessage(res, ko.errors.screenshotFailed));
+        setError(getErrorMessage(res, en.errors.screenshotFailed));
         return;
       }
       setPendingScreenshot(res.data as string);
     } catch {
-      setError(ko.errors.screenshotFailed);
+      setError(en.errors.screenshotFailed);
     } finally {
       setBusy(false);
     }
@@ -212,10 +213,11 @@ export default function App() {
 
   async function startCrop() {
     if (titleInvalid) {
-      setError(ko.errors.titleRequiredBeforeCrop);
+      setError(en.errors.titleRequiredBeforeCrop);
       return;
     }
     setError('');
+    setNotice('');
     const res = await sendMessage({
       type: 'INITIATE_CROP',
       payload: {
@@ -225,9 +227,10 @@ export default function App() {
       },
     });
     if (!res.ok) {
-      setError(getErrorMessage(res, ko.errors.cropFailed));
+      setError(getErrorMessage(res, en.errors.cropFailed));
       return;
     }
+    setNotice(en.notices.cropStarted);
     resetForm();
     setView('list');
   }
@@ -245,7 +248,7 @@ export default function App() {
               ? { type: 'EXPORT_CSV' as const }
               : { type: 'EXPORT_HTML' as const };
     const res = await sendMessage(message);
-    if (!res.ok) setError(getErrorMessage(res, ko.errors.exportFailed));
+    if (!res.ok) setError(getErrorMessage(res, en.errors.exportFailed));
   }
 
   async function importJson(file: File) {
@@ -253,7 +256,7 @@ export default function App() {
     const text = await file.text();
     const res = await sendMessage({ type: 'IMPORT_JSON', payload: { json: text } });
     if (!res.ok) {
-      setError(getErrorMessage(res, ko.errors.importFailed));
+      setError(getErrorMessage(res, en.errors.importFailed));
       return;
     }
     await refreshSession();
@@ -263,7 +266,7 @@ export default function App() {
   async function clearSession() {
     setMoreOpen(false);
     if (!summary?.annotationsCount) return;
-    if (!confirm(ko.confirm.resetSession)) return;
+    if (!confirm(en.confirm.resetSession)) return;
     await sendMessage({ type: 'CLEAR_SESSION' });
     resetForm();
     setView('compose');
@@ -280,20 +283,20 @@ export default function App() {
       <header className="border-b border-[var(--color-border)] bg-[var(--color-card)] px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold tracking-tight">{ko.app.title}</h1>
-            <p className="text-xs text-[var(--color-muted)]">{ko.app.subtitle}</p>
+            <h1 className="text-base font-semibold tracking-tight">{en.app.title}</h1>
+            <p className="text-xs text-[var(--color-muted)]">{en.app.subtitle}</p>
           </div>
           {summary && summary.annotationsCount > 0 && (
             <Badge tone="neutral" data-testid="session-count">
-              {ko.app.itemCount(summary.annotationsCount)}
+              {en.app.itemCount(summary.annotationsCount)}
             </Badge>
           )}
         </div>
         <nav className="mt-3 flex gap-4 border-b border-[var(--color-border)]">
           {(
             [
-              ['compose', ko.nav.compose],
-              ['list', ko.nav.saved],
+              ['compose', en.nav.compose],
+              ['list', en.nav.saved],
             ] as const
           ).map(([mode, label]) => (
             <button
@@ -303,6 +306,7 @@ export default function App() {
               onClick={() => {
                 setView(mode);
                 setError('');
+                if (mode === 'compose') setNotice('');
               }}
               className={cn(
                 'border-b-2 pb-2 text-sm font-medium transition-colors',
@@ -315,18 +319,26 @@ export default function App() {
             </button>
           ))}
         </nav>
+        {notice && (
+          <p
+            className="mt-3 rounded-md border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900"
+            data-testid="crop-notice"
+          >
+            {notice}
+          </p>
+        )}
       </header>
 
       <main className="flex-1 overflow-y-auto p-4">
         {sessionLoading && (
-          <p className="mb-4 text-center text-sm text-[var(--color-muted)]">{ko.app.loading}</p>
+          <p className="mb-4 text-center text-sm text-[var(--color-muted)]">{en.app.loading}</p>
         )}
 
         {view === 'compose' && (
           <div className="space-y-4">
             {editingId && (
               <p className="text-xs font-medium text-zinc-600" data-testid="editing-indicator">
-                {ko.form.editing}
+                {en.form.editing}
               </p>
             )}
             <div className="flex gap-1 border-b border-[var(--color-border)]" data-testid="type-tabs">
@@ -358,7 +370,7 @@ export default function App() {
 
             <div>
               <label className="mb-1 block text-xs font-medium text-[var(--color-muted)]">
-                {ko.form.titleRequired}
+                {en.form.titleRequired}
               </label>
               <Input
                 data-testid="annotation-title"
@@ -372,7 +384,7 @@ export default function App() {
               value={description}
               onChange={setDescription}
               label={descriptionLabel(activeType)}
-              placeholder={ko.form.bugPlaceholder}
+              placeholder={en.form.bugPlaceholder}
               testId="annotation-description"
             />
 
@@ -389,30 +401,30 @@ export default function App() {
                 onClick={() => void saveAnnotation()}
                 className="flex-1"
               >
-                {editingId ? ko.actions.update : ko.actions.review}
+                {editingId ? en.actions.update : en.actions.review}
               </Button>
               <Button
                 data-testid="screenshot-full"
                 variant="outline"
                 disabled={busy || !!editingId}
                 onClick={() => void captureFullScreenshot()}
-                aria-label={ko.actions.captureFullAria}
+                aria-label={en.actions.captureFullAria}
               >
-                {ko.actions.captureFull}
+                {en.actions.captureFull}
               </Button>
               <Button
                 data-testid="screenshot-crop"
                 variant="outline"
                 disabled={busy || titleInvalid || !!editingId}
                 onClick={() => void startCrop()}
-                aria-label={ko.actions.captureCropAria}
+                aria-label={en.actions.captureCropAria}
               >
-                {ko.actions.captureCrop}
+                {en.actions.captureCrop}
               </Button>
             </div>
             {editingId && (
               <Button data-testid="cancel-edit" variant="ghost" size="sm" onClick={resetForm}>
-                {ko.actions.cancelEdit}
+                {en.actions.cancelEdit}
               </Button>
             )}
           </div>
@@ -432,7 +444,7 @@ export default function App() {
         {view === 'list' && (
           <section data-testid="annotation-list">
             {annotations.length === 0 ? (
-              <p className="text-center text-sm text-[var(--color-muted)]">{ko.form.noSaved}</p>
+              <p className="text-center text-sm text-[var(--color-muted)]">{en.form.noSaved}</p>
             ) : (
               <ul className="space-y-2">
                 {annotations.map((annotation) => (
@@ -461,7 +473,7 @@ export default function App() {
                             {annotation.imageId && (
                               <ImageIcon
                                 className="h-3.5 w-3.5 shrink-0 text-[var(--color-muted)]"
-                                aria-label={ko.image.hasScreenshot}
+                                aria-label={en.image.hasScreenshot}
                               />
                             )}
                             <span className="truncate text-sm font-medium">{annotation.title}</span>
@@ -493,7 +505,7 @@ export default function App() {
 
       <footer className="flex flex-wrap gap-2 border-t border-[var(--color-border)] bg-[var(--color-card)] p-4 shadow-sm">
         <Button data-testid="preview-report" variant="outline" size="sm" onClick={openReport}>
-          {ko.actions.previewReport}
+          {en.actions.previewReport}
         </Button>
         <div className="relative" ref={exportMenuRef}>
           <Button
@@ -502,7 +514,7 @@ export default function App() {
             variant="outline"
             onClick={() => setExportOpen((v) => !v)}
           >
-            {ko.actions.export} ▾
+            {en.actions.export} ▾
           </Button>
           {exportOpen && (
             <div
@@ -520,7 +532,7 @@ export default function App() {
                   )}
                   onClick={() => void runExport(option.id)}
                 >
-                  {option.defaultMarker ? `${ko.export.default} · ` : ''}
+                  {option.defaultMarker ? `${en.export.default} · ` : ''}
                   {option.label}
                 </button>
               ))}
@@ -533,7 +545,7 @@ export default function App() {
             size="sm"
             variant="outline"
             onClick={() => setMoreOpen((v) => !v)}
-            aria-label={ko.actions.more}
+            aria-label={en.actions.more}
           >
             ⋯
           </Button>
@@ -548,7 +560,7 @@ export default function App() {
                 className="block w-full px-3 py-2 text-left text-xs hover:bg-zinc-50"
                 onClick={() => importRef.current?.click()}
               >
-                {ko.actions.import}
+                {en.actions.import}
               </button>
               <button
                 type="button"
@@ -556,7 +568,7 @@ export default function App() {
                 className="block w-full px-3 py-2 text-left text-xs text-red-600 hover:bg-zinc-50"
                 onClick={() => void clearSession()}
               >
-                {ko.actions.resetSession}
+                {en.actions.resetSession}
               </button>
             </div>
           )}
@@ -597,7 +609,7 @@ export default function App() {
             });
             setBusy(false);
             if (!res.ok) {
-              setError(getErrorMessage(res, ko.errors.saveFailed));
+              setError(getErrorMessage(res, en.errors.saveFailed));
               return;
             }
             setPendingScreenshot(null);

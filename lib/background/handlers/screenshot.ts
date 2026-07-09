@@ -1,17 +1,10 @@
 import type { CropCoordinates, Message, MessageResponse } from '@/lib/messaging/protocol';
+import { getCapturableWebTab } from '@/lib/background/web-tab';
 
 export async function captureFullWebTab(): Promise<string> {
-  const tabs = await chrome.tabs.query({});
-  const webTabs = tabs.filter(
-    (tab) =>
-      tab.id &&
-      tab.windowId !== undefined &&
-      tab.url &&
-      (tab.url.startsWith('http://') || tab.url.startsWith('https://')),
-  );
-  const webTab = webTabs[webTabs.length - 1];
+  const webTab = await getCapturableWebTab();
 
-  if (!webTab?.id || webTab.windowId === undefined) {
+  if (!webTab.id || webTab.windowId === undefined) {
     throw new Error('No web page tab found to capture');
   }
 
@@ -32,8 +25,11 @@ export async function captureFullWebTab(): Promise<string> {
   return dataUrl;
 }
 
-export async function captureCrop(coords: CropCoordinates): Promise<string | null> {
-  const dataUrl = await chrome.tabs.captureVisibleTab({ format: 'png' });
+export async function captureCrop(
+  coords: CropCoordinates,
+  windowId: number,
+): Promise<string | null> {
+  const dataUrl = await chrome.tabs.captureVisibleTab(windowId, { format: 'png' });
   if (!dataUrl) return null;
 
   const response = await fetch(dataUrl);
@@ -63,30 +59,59 @@ export async function captureCrop(coords: CropCoordinates): Promise<string | nul
   });
 }
 
-export async function handleScreenshotMessage(message: Message): Promise<MessageResponse | null> {
+export async function handleScreenshotMessage(
+  message: Message,
+  sender?: chrome.runtime.MessageSender,
+): Promise<MessageResponse | null> {
   switch (message.type) {
     case 'INITIATE_CROP': {
-      const tabs = await chrome.tabs.query({});
-      const webTabs = tabs.filter(
-        (t) =>
-          t.id &&
-          t.url &&
-          (t.url.startsWith('http://') || t.url.startsWith('https://')),
-      );
-      const tab = webTabs[webTabs.length - 1];
-      if (!tab?.id || !tab.url) {
+      let tab: chrome.tabs.Tab;
+      try {
+        tab = await getCapturableWebTab();
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'No web page tab found for crop',
+        };
+      }
+
+      if (!tab.id) {
         return { ok: false, error: 'No web page tab found for crop' };
       }
-      await chrome.tabs.sendMessage(tab.id, {
-        type: 'START_CROP',
-        draft: message.payload,
-      });
+
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          type: 'START_CROP',
+          draft: message.payload,
+        });
+      } catch {
+        return {
+          ok: false,
+          error: 'Could not reach the page. Reload the tab and try again.',
+        };
+      }
+
       await chrome.tabs.update(tab.id, { active: true });
       return { ok: true };
     }
     case 'REQUEST_CROP_SCREENSHOT': {
-      const dataUrl = await captureCrop(message.payload.coordinates);
-      return { ok: true, data: dataUrl };
+      const windowId = sender?.tab?.windowId;
+      if (windowId === undefined) {
+        return { ok: false, error: 'No window context for area capture' };
+      }
+
+      try {
+        const dataUrl = await captureCrop(message.payload.coordinates, windowId);
+        if (!dataUrl) {
+          return { ok: false, error: 'Area screenshot capture failed' };
+        }
+        return { ok: true, data: dataUrl };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'Area screenshot capture failed',
+        };
+      }
     }
     case 'CAPTURE_FULL_SCREENSHOT': {
       try {

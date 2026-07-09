@@ -1,3 +1,16 @@
+import { en } from '@/lib/i18n';
+
+function showPageNotice(message: string) {
+  const el = document.createElement('div');
+  el.textContent = message;
+  el.style.cssText =
+    'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
+    'background:#1e293b;color:#f8fafc;padding:10px 16px;border-radius:8px;font:14px system-ui,sans-serif;' +
+    'box-shadow:0 4px 12px rgba(0,0,0,0.25);max-width:90vw;text-align:center;';
+  document.body.appendChild(el);
+  window.setTimeout(() => el.remove(), 4000);
+}
+
 export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
@@ -88,6 +101,12 @@ export default defineContentScript({
 
       if (response?.ok && response.data) {
         await openAnnotationEditor(response.data as string);
+      } else {
+        showPageNotice(
+          typeof response?.error === 'string'
+            ? response.error
+            : en.errors.cropCaptureFailed,
+        );
       }
       cleanup();
     }
@@ -99,12 +118,19 @@ export default defineContentScript({
         iframe.style.cssText =
           'position:fixed;inset:0;border:none;z-index:2147483647;width:100%;height:100%;';
         iframe.src = chrome.runtime.getURL('/annotation-editor.html');
-        document.body.appendChild(iframe);
 
         const draft = cropDraft;
+        let editorReady = false;
 
         const onMessage = async (event: MessageEvent) => {
           if (event.source !== iframe.contentWindow) return;
+
+          if (event.data?.type === 'annotationEditorReady' && !editorReady) {
+            editorReady = true;
+            iframe.contentWindow?.postMessage({ type: 'initAnnotationEditor', imageData }, '*');
+            return;
+          }
+
           if (event.data?.type === 'annotationComplete') {
             closeEditor();
             await openSaveDetailsDialog(event.data.imageData as string, draft!);
@@ -122,8 +148,11 @@ export default defineContentScript({
 
         window.addEventListener('message', onMessage);
         iframe.addEventListener('load', () => {
-          iframe.contentWindow?.postMessage({ type: 'initAnnotationEditor', imageData }, '*');
+          if (!editorReady) {
+            iframe.contentWindow?.postMessage({ type: 'requestAnnotationEditorReady' }, '*');
+          }
         });
+        document.body.appendChild(iframe);
       });
     }
 
@@ -137,7 +166,6 @@ export default defineContentScript({
         iframe.style.cssText =
           'position:fixed;inset:0;border:none;z-index:2147483647;width:100%;height:100%;';
         iframe.src = chrome.runtime.getURL('/save-details.html');
-        document.body.appendChild(iframe);
 
         let ready = false;
 
@@ -183,6 +211,12 @@ export default defineContentScript({
         }
 
         window.addEventListener('message', onMessage);
+        iframe.addEventListener('load', () => {
+          if (!ready) {
+            iframe.contentWindow?.postMessage({ type: 'requestSaveDetailsReady' }, '*');
+          }
+        });
+        document.body.appendChild(iframe);
       });
     }
 

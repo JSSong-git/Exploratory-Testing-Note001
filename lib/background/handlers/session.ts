@@ -1,7 +1,10 @@
 import type { Message, MessageResponse } from '@/lib/messaging/protocol';
 import { clearSession, getSession, getSessionSummary } from '@/lib/services/session-service';
 
-export async function handleSessionMessage(message: Message): Promise<MessageResponse | null> {
+export async function handleSessionMessage(
+  message: Message,
+  _sender?: chrome.runtime.MessageSender,
+): Promise<MessageResponse | null> {
   switch (message.type) {
     case 'GET_SESSION_SUMMARY':
       return { ok: true, data: getSessionSummary() };

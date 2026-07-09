@@ -1,4 +1,4 @@
-/** 목록 미리보기용 Markdown 원문 제거 */
+/** Strip Markdown markup for compact list previews. */
 export function stripMarkdownForPreview(text: string): string {
   return text
     .replace(/```[\s\S]*?```/g, '')
