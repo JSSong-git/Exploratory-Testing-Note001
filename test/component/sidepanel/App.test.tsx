@@ -66,8 +66,15 @@ describe('Side Panel App', () => {
     mockSessionResponses();
     vi.stubGlobal('chrome', {
       tabs: { create: vi.fn() },
-      runtime: { getURL: vi.fn((path: string) => `chrome-extension://test${path}`) },
-      storage: { local: { set: vi.fn(), get: vi.fn(), remove: vi.fn() } },
+      runtime: {
+        getURL: vi.fn((path: string) => `chrome-extension://test${path}`),
+        onMessage: { addListener: vi.fn(), removeListener: vi.fn() },
+        sendMessage: vi.fn(),
+      },
+      storage: {
+        local: { set: vi.fn(), get: vi.fn(), remove: vi.fn() },
+        onChanged: { addListener: vi.fn(), removeListener: vi.fn() },
+      },
     });
     vi.stubGlobal('confirm', vi.fn(() => true));
   });

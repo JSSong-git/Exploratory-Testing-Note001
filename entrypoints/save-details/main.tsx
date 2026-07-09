@@ -68,8 +68,5 @@ function SaveDetailsApp() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <SaveDetailsApp />
-  </React.StrictMode>,
-);
+// Avoid StrictMode double-mount: parent iframe handshake is one-shot.
+ReactDOM.createRoot(document.getElementById('root')!).render(<SaveDetailsApp />);

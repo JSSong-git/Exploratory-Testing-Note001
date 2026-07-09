@@ -76,6 +76,30 @@ export default function App() {
   }, [refreshSession]);
 
   useEffect(() => {
+    function onRuntimeMessage(message: { type?: string }) {
+      if (message?.type === 'SESSION_CHANGED') {
+        void refreshSession();
+        setNotice('');
+      }
+    }
+    function onStorageChanged(
+      changes: { [key: string]: chrome.storage.StorageChange },
+      area: string,
+    ) {
+      if (area === 'local' && changes.session) {
+        void refreshSession();
+        setNotice('');
+      }
+    }
+    chrome.runtime.onMessage.addListener(onRuntimeMessage);
+    chrome.storage.onChanged.addListener(onStorageChanged);
+    return () => {
+      chrome.runtime.onMessage.removeListener(onRuntimeMessage);
+      chrome.storage.onChanged.removeListener(onStorageChanged);
+    };
+  }, [refreshSession]);
+
+  useEffect(() => {
     loadComposeDraft().then((draft) => {
       if (draft && !editingId) {
         setActiveType(draft.activeType);

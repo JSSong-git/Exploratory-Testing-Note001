@@ -16,7 +16,8 @@ export type Message =
   | { type: 'INITIATE_CROP'; payload: CropDraft }
   | { type: 'REQUEST_CROP_SCREENSHOT'; payload: { coordinates: CropCoordinates } }
   | { type: 'CAPTURE_FULL_SCREENSHOT' }
-  | { type: 'SAVE_CROPPED_ANNOTATION'; payload: SaveCroppedPayload };
+  | { type: 'SAVE_CROPPED_ANNOTATION'; payload: SaveCroppedPayload }
+  | { type: 'SESSION_CHANGED' };
 
 export interface AddAnnotationPayload {
   annotationType: AnnotationType;

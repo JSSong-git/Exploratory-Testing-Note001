@@ -209,37 +209,56 @@ export default defineContentScript({
           'position:fixed;inset:0;border:none;z-index:2147483647;width:100%;height:100%;';
         iframe.src = chrome.runtime.getURL('/save-details.html');
 
-        let ready = false;
+        let confirmed = false;
+
+        const sendInit = () => {
+          iframe.contentWindow?.postMessage(
+            {
+              type: 'initSaveDetails',
+              annotationType: draft.annotationType,
+              title: draft.title,
+              description: draft.description,
+              imageDataUrl: imageData,
+            },
+            '*',
+          );
+        };
 
         const onMessage = async (event: MessageEvent) => {
           if (event.source !== iframe.contentWindow) return;
 
-          if (event.data?.type === 'saveDetailsReady' && !ready) {
-            ready = true;
-            iframe.contentWindow?.postMessage(
-              {
-                type: 'initSaveDetails',
-                annotationType: draft.annotationType,
-                title: draft.title,
-                description: draft.description,
-                imageDataUrl: imageData,
-              },
-              '*',
-            );
+          if (event.data?.type === 'saveDetailsReady' && !confirmed) {
+            sendInit();
             return;
           }
 
           if (event.data?.type === 'saveDetailsConfirmed') {
-            await chrome.runtime.sendMessage({
-              type: 'SAVE_CROPPED_ANNOTATION',
-              payload: {
-                annotationType: event.data.annotationType,
-                title: event.data.title,
-                description: event.data.description,
-                imageDataUrl: event.data.imageDataUrl,
-              },
-            });
-            closeDialog();
+            if (confirmed) return;
+            confirmed = true;
+            try {
+              const response = await chrome.runtime.sendMessage({
+                type: 'SAVE_CROPPED_ANNOTATION',
+                payload: {
+                  annotationType: event.data.annotationType,
+                  title: event.data.title,
+                  description: event.data.description,
+                  imageDataUrl: event.data.imageDataUrl ?? imageData,
+                },
+              });
+              closeDialog();
+              if (!response?.ok) {
+                showPageNotice(
+                  typeof response?.error === 'string'
+                    ? response.error
+                    : en.errors.saveFailed,
+                );
+              } else {
+                showPageNotice(en.notify.savedMessage(String(event.data.title ?? draft.title)));
+              }
+            } catch (err) {
+              closeDialog();
+              showPageNotice(err instanceof Error ? err.message : en.errors.saveFailed);
+            }
             resolve();
           } else if (event.data?.type === 'saveDetailsCancelled') {
             closeDialog();
@@ -254,7 +273,7 @@ export default defineContentScript({
 
         window.addEventListener('message', onMessage);
         iframe.addEventListener('load', () => {
-          if (!ready) {
+          if (!confirmed) {
             iframe.contentWindow?.postMessage({ type: 'requestSaveDetailsReady' }, '*');
           }
         });

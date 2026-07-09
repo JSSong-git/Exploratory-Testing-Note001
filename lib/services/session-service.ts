@@ -30,10 +30,19 @@ async function ensureSession(): Promise<Session> {
   return sessionCache;
 }
 
-export async function addAnnotation(payload: AddAnnotationPayload): Promise<void> {
+export async function addAnnotation(
+  payload: AddAnnotationPayload,
+  options?: { url?: string },
+): Promise<void> {
   const session = await ensureSession();
-  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-  const url = tabs[0]?.url ?? 'N/A';
+  let url = options?.url;
+  if (!url || url === 'N/A') {
+    const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    const capturable = tabs.find(
+      (t) => t.url && (t.url.startsWith('http://') || t.url.startsWith('https://')),
+    );
+    url = capturable?.url ?? tabs[0]?.url ?? 'N/A';
+  }
   const imageId = await imageDataUrlToId(payload.imageDataUrl);
 
   const annotation = {

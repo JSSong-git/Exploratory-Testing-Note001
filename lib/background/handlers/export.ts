@@ -4,6 +4,7 @@ import { buildCsv, buildJson, buildMarkdownZip, buildInlineMarkdown } from '@/li
 import { buildStandaloneHtml } from '@/lib/export/html';
 import { downloadBlob, downloadText, sessionFilename } from '@/lib/export/download';
 import { importSessionJson } from '@/lib/export/session-import';
+import { broadcastSessionChanged } from '@/lib/background/session-events';
 import { en } from '@/lib/i18n';
 
 export async function handleExportMessage(
@@ -58,6 +59,7 @@ export async function handleExportMessage(
       try {
         const session = await importSessionJson(message.payload.json);
         await replaceSession(session);
+        broadcastSessionChanged();
         return { ok: true };
       } catch (err) {
         const detail = err instanceof Error ? err.message : 'Unknown error';
