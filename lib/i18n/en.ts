@@ -137,7 +137,8 @@ export const en = {
   },
   notices: {
     cropStarted:
-      'Switch to the web page tab and drag to select an area. Press Esc to cancel.',
+      'The page should show a dimmed overlay — drag to select an area. Press Esc to cancel.',
+    cropPageHint: 'Drag to select an area · Esc to cancel',
   },
   confirm: {
     delete: 'Delete this record?',

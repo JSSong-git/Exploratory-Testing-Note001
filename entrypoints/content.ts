@@ -1,5 +1,11 @@
 import { en } from '@/lib/i18n';
 
+declare global {
+  interface Window {
+    __etCropContentLoaded?: boolean;
+  }
+}
+
 function showPageNotice(message: string) {
   const el = document.createElement('div');
   el.textContent = message;
@@ -15,13 +21,22 @@ export default defineContentScript({
   matches: ['<all_urls>'],
   runAt: 'document_idle',
   main() {
+    if (window.__etCropContentLoaded) return;
+    window.__etCropContentLoaded = true;
+
+    let overlay: HTMLDivElement | null = null;
     let selectionBox: HTMLDivElement | null = null;
+    let hint: HTMLDivElement | null = null;
     let isDrawing = false;
     let startX = 0;
     let startY = 0;
     let cropDraft: { annotationType: string; title: string; description?: string } | null = null;
 
     chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message.type === 'PING_CROP') {
+        sendResponse({ ok: true });
+        return false;
+      }
       if (message.type === 'START_CROP') {
         cropDraft = message.draft;
         initSelection();
@@ -31,18 +46,38 @@ export default defineContentScript({
     });
 
     function initSelection() {
-      if (!selectionBox) {
-        selectionBox = document.createElement('div');
-        selectionBox.id = 'et-selection-box';
-        selectionBox.style.cssText =
-          'position:fixed;z-index:2147483647;border:2px dashed #38bdf8;background:rgba(56,189,248,0.15);pointer-events:none;display:none;';
-        document.body.appendChild(selectionBox);
-      }
-      document.addEventListener('mousedown', onMouseDown);
+      cleanupUi(false);
+
+      overlay = document.createElement('div');
+      overlay.id = 'et-crop-overlay';
+      overlay.style.cssText =
+        'position:fixed;inset:0;z-index:2147483646;cursor:crosshair;' +
+        'background:rgba(15,23,42,0.28);';
+
+      hint = document.createElement('div');
+      hint.textContent = en.notices.cropPageHint;
+      hint.style.cssText =
+        'position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:2147483647;' +
+        'background:#0f172a;color:#f8fafc;padding:10px 16px;border-radius:8px;' +
+        'font:13px system-ui,sans-serif;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
+
+      selectionBox = document.createElement('div');
+      selectionBox.id = 'et-selection-box';
+      selectionBox.style.cssText =
+        'position:fixed;z-index:2147483647;border:2px dashed #38bdf8;' +
+        'background:rgba(56,189,248,0.18);pointer-events:none;display:none;';
+
+      document.body.appendChild(overlay);
+      document.body.appendChild(hint);
+      document.body.appendChild(selectionBox);
+
+      overlay.addEventListener('mousedown', onMouseDown);
       document.addEventListener('keydown', onKeyDown);
     }
 
     function onMouseDown(e: MouseEvent) {
+      e.preventDefault();
+      e.stopPropagation();
       isDrawing = true;
       startX = e.clientX;
       startY = e.clientY;
@@ -59,6 +94,7 @@ export default defineContentScript({
 
     function onMouseMove(e: MouseEvent) {
       if (!isDrawing || !selectionBox) return;
+      e.preventDefault();
       const x = Math.min(startX, e.clientX);
       const y = Math.min(startY, e.clientY);
       selectionBox.style.left = `${x}px`;
@@ -77,16 +113,18 @@ export default defineContentScript({
       const y = Math.min(startY, e.clientY);
       const width = Math.abs(e.clientX - startX);
       const height = Math.abs(e.clientY - startY);
-      selectionBox.style.display = 'none';
 
       if (width < 4 || height < 4) {
         cleanup();
         return;
       }
 
+      // Hide UI before capture so the overlay is not in the screenshot.
+      cleanupUi(true);
       await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 50)));
 
       const dpr = window.devicePixelRatio || 1;
+      const draft = cropDraft;
       const response = await chrome.runtime.sendMessage({
         type: 'REQUEST_CROP_SCREENSHOT',
         payload: {
@@ -99,8 +137,11 @@ export default defineContentScript({
         },
       });
 
+      cropDraft = null;
+      document.removeEventListener('keydown', onKeyDown);
+
       if (response?.ok && response.data) {
-        await openAnnotationEditor(response.data as string);
+        await openAnnotationEditor(response.data as string, draft!);
       } else {
         showPageNotice(
           typeof response?.error === 'string'
@@ -108,10 +149,12 @@ export default defineContentScript({
             : en.errors.cropCaptureFailed,
         );
       }
-      cleanup();
     }
 
-    function openAnnotationEditor(imageData: string): Promise<void> {
+    function openAnnotationEditor(
+      imageData: string,
+      draft: { annotationType: string; title: string; description?: string },
+    ): Promise<void> {
       return new Promise((resolve) => {
         const iframe = document.createElement('iframe');
         iframe.id = 'et-annotation-editor';
@@ -119,7 +162,6 @@ export default defineContentScript({
           'position:fixed;inset:0;border:none;z-index:2147483647;width:100%;height:100%;';
         iframe.src = chrome.runtime.getURL('/annotation-editor.html');
 
-        const draft = cropDraft;
         let editorReady = false;
 
         const onMessage = async (event: MessageEvent) => {
@@ -133,7 +175,7 @@ export default defineContentScript({
 
           if (event.data?.type === 'annotationComplete') {
             closeEditor();
-            await openSaveDetailsDialog(event.data.imageData as string, draft!);
+            await openSaveDetailsDialog(event.data.imageData as string, draft);
             resolve();
           } else if (event.data?.type === 'annotationCancelled') {
             closeEditor();
@@ -224,12 +266,23 @@ export default defineContentScript({
       if (e.key === 'Escape') cleanup();
     }
 
-    function cleanup() {
-      document.removeEventListener('mousedown', onMouseDown);
+    function cleanupUi(keepDraft: boolean) {
       document.removeEventListener('mousemove', onMouseMove);
       document.removeEventListener('mouseup', onMouseUp);
-      document.removeEventListener('keydown', onKeyDown);
-      if (selectionBox) selectionBox.style.display = 'none';
+      overlay?.remove();
+      selectionBox?.remove();
+      hint?.remove();
+      overlay = null;
+      selectionBox = null;
+      hint = null;
+      isDrawing = false;
+      if (!keepDraft) {
+        document.removeEventListener('keydown', onKeyDown);
+      }
+    }
+
+    function cleanup() {
+      cleanupUi(false);
       cropDraft = null;
     }
   },

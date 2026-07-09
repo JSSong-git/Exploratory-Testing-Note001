@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import {
+  ensureContentScript,
   getCapturableWebTab,
   isCapturableUrl,
   pickPreferredTab,
@@ -74,7 +75,7 @@ describe('getCapturableWebTab', () => {
     const newer = tab({ id: 4, windowId: 1, url: 'https://new.example', lastAccessed: 50 });
 
     vi.mocked(chrome.tabs.query).mockImplementation(async (query) => {
-      if ('active' in query && query.active) {
+      if ('active' in query && query.active && 'lastFocusedWindow' in query) {
         return [sidepanel];
       }
       if ('windowId' in query && query.windowId === 1) {
@@ -92,5 +93,39 @@ describe('getCapturableWebTab', () => {
     ]);
 
     await expect(getCapturableWebTab()).rejects.toThrow(/capturable web page/i);
+  });
+});
+
+describe('ensureContentScript', () => {
+  beforeEach(() => {
+    vi.stubGlobal('chrome', {
+      tabs: {
+        sendMessage: vi.fn(),
+      },
+      scripting: {
+        executeScript: vi.fn(),
+      },
+    });
+  });
+
+  it('skips injection when the content script already responds', async () => {
+    vi.mocked(chrome.tabs.sendMessage).mockResolvedValue({ ok: true });
+
+    await ensureContentScript(7);
+
+    expect(chrome.tabs.sendMessage).toHaveBeenCalledWith(7, { type: 'PING_CROP' });
+    expect(chrome.scripting.executeScript).not.toHaveBeenCalled();
+  });
+
+  it('injects the content script when ping fails', async () => {
+    vi.mocked(chrome.tabs.sendMessage).mockRejectedValue(new Error('no receiver'));
+    vi.mocked(chrome.scripting.executeScript).mockResolvedValue([] as never);
+
+    await ensureContentScript(7);
+
+    expect(chrome.scripting.executeScript).toHaveBeenCalledWith({
+      target: { tabId: 7 },
+      files: ['content-scripts/content.js'],
+    });
   });
 });

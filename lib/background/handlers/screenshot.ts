@@ -1,5 +1,5 @@
 import type { CropCoordinates, Message, MessageResponse } from '@/lib/messaging/protocol';
-import { getCapturableWebTab } from '@/lib/background/web-tab';
+import { ensureContentScript, getCapturableWebTab } from '@/lib/background/web-tab';
 
 export async function captureFullWebTab(): Promise<string> {
   const webTab = await getCapturableWebTab();
@@ -79,7 +79,18 @@ export async function handleScreenshotMessage(
         return { ok: false, error: 'No web page tab found for crop' };
       }
 
+      // Bring the page forward first so the selection overlay is visible immediately.
+      await chrome.tabs.update(tab.id, { active: true });
+      if (tab.windowId !== undefined) {
+        try {
+          await chrome.windows.update(tab.windowId, { focused: true });
+        } catch {
+          // Some environments disallow focusing windows; crop can still proceed.
+        }
+      }
+
       try {
+        await ensureContentScript(tab.id);
         await chrome.tabs.sendMessage(tab.id, {
           type: 'START_CROP',
           draft: message.payload,
@@ -91,7 +102,6 @@ export async function handleScreenshotMessage(
         };
       }
 
-      await chrome.tabs.update(tab.id, { active: true });
       return { ok: true };
     }
     case 'REQUEST_CROP_SCREENSHOT': {
