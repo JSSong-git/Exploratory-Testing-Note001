@@ -55,6 +55,39 @@ describe('background handleMessage', () => {
     expect(sessionService.addAnnotation).toHaveBeenCalled();
   });
 
+  it('saves cropped annotation with image payload', async () => {
+    const res = await handleMessage({
+      type: 'SAVE_CROPPED_ANNOTATION',
+      payload: {
+        annotationType: 'bug',
+        title: 'Cropped defect',
+        description: 'Selected area',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      },
+    });
+    expect(res.ok).toBe(true);
+    expect(sessionService.addAnnotation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Cropped defect',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('rejects SAVE_CROPPED_ANNOTATION without title', async () => {
+    const res = await handleMessage({
+      type: 'SAVE_CROPPED_ANNOTATION',
+      payload: {
+        annotationType: 'bug',
+        title: '  ',
+        imageDataUrl: 'data:image/jpeg;base64,abc',
+      },
+    });
+    expect(res.ok).toBe(false);
+    expect(sessionService.addAnnotation).not.toHaveBeenCalled();
+  });
+
   it('returns error when exporting empty session', async () => {
     vi.mocked(sessionService.getSession).mockReturnValue({
       startDateTime: Date.now(),

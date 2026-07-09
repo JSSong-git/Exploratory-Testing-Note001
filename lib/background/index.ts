@@ -24,18 +24,32 @@ export async function handleMessage(
   return { ok: false, error: 'Unknown message type' };
 }
 
-export async function registerBackground(): Promise<void> {
-  await initSession();
+let sessionReady: Promise<void> | null = null;
 
-  if (chrome.sidePanel) {
-    await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+function ensureSessionReady(): Promise<void> {
+  if (!sessionReady) {
+    sessionReady = initSession();
   }
+  return sessionReady;
+}
 
+/**
+ * Register the message listener synchronously so MV3 service-worker wakeups
+ * never miss the first message (e.g. SAVE_CROPPED_ANNOTATION).
+ */
+export function registerBackground(): void {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message?.type) return false;
-    handleMessage(message as Message, sender)
+    ensureSessionReady()
+      .then(() => handleMessage(message as Message, sender))
       .then(sendResponse)
       .catch((err: Error) => sendResponse({ ok: false, error: err.message }));
     return true;
+  });
+
+  void ensureSessionReady().then(async () => {
+    if (chrome.sidePanel) {
+      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+    }
   });
 }

@@ -54,7 +54,8 @@ export class AnnotationEditorController {
 
   exportDataUrl(): string {
     this.redraw();
-    return this.canvas.toDataURL('image/png');
+    // JPEG keeps chrome.runtime message payloads small enough for reliable saves.
+    return this.canvas.toDataURL('image/jpeg', 0.85);
   }
 
   private bindEvents() {

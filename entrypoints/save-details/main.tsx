@@ -55,11 +55,14 @@ function SaveDetailsApp() {
       previewImageUrl={init.imageDataUrl}
       onCancel={() => window.parent.postMessage({ type: 'saveDetailsCancelled' }, '*')}
       onConfirm={(values) => {
+        // Do not post the screenshot back — parent content script already holds it.
+        // Re-sending a large data URL through cross-origin postMessage often fails silently.
         window.parent.postMessage(
           {
             type: 'saveDetailsConfirmed',
-            ...values,
-            imageDataUrl: init.imageDataUrl,
+            annotationType: values.annotationType,
+            title: values.title,
+            description: values.description,
           },
           '*',
         );

@@ -235,14 +235,31 @@ export default defineContentScript({
           if (event.data?.type === 'saveDetailsConfirmed') {
             if (confirmed) return;
             confirmed = true;
+            const title = String(event.data.title ?? draft.title ?? '').trim();
+            const annotationType = event.data.annotationType ?? draft.annotationType;
+            const description =
+              typeof event.data.description === 'string'
+                ? event.data.description
+                : draft.description;
             try {
+              if (!title) {
+                confirmed = false;
+                showPageNotice(en.errors.titleRequired);
+                return;
+              }
+              if (!imageData) {
+                closeDialog();
+                showPageNotice(en.errors.saveFailed);
+                resolve();
+                return;
+              }
               const response = await chrome.runtime.sendMessage({
                 type: 'SAVE_CROPPED_ANNOTATION',
                 payload: {
-                  annotationType: event.data.annotationType,
-                  title: event.data.title,
-                  description: event.data.description,
-                  imageDataUrl: event.data.imageDataUrl ?? imageData,
+                  annotationType,
+                  title,
+                  description,
+                  imageDataUrl: imageData,
                 },
               });
               closeDialog();
@@ -253,7 +270,7 @@ export default defineContentScript({
                     : en.errors.saveFailed,
                 );
               } else {
-                showPageNotice(en.notify.savedMessage(String(event.data.title ?? draft.title)));
+                showPageNotice(en.notify.savedMessage(title));
               }
             } catch (err) {
               closeDialog();
